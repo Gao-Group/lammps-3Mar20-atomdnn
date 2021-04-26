@@ -1,0 +1,13 @@
+LAMMPS (3 Mar 2020)
+clear
+dimension 3
+boundary p p p
+units metal
+atom_style atomic
+
+processors 1 1 1 grid onelevel file processor.dat
+
+
+read_data Pt_Cu.lmpdata
+ERROR on proc 0: Cannot open file Pt_Cu.lmpdata (../read_data.cpp:2035)
+Last command: read_data Pt_Cu.lmpdata
