@@ -20,6 +20,7 @@
 #include <mpi.h>
 #include <cmath>
 #include <cstring>
+#include <numeric>
 #include "atom.h"
 #include "comm.h"
 #include "force.h"
@@ -181,7 +182,7 @@ void PairTFDNN::read_file(char *filename)
 
 /* ---------------------------------------------------------------------- */
 
-PairTFDNN::PairTFDNN(LAMMPS *lmp) : Pair(lmp), fingerpts(NULL)
+PairTFDNN::PairTFDNN(LAMMPS *lmp) : Pair(lmp), fingerprints(NULL)
 {
   single_enable = 0;
   restartinfo = 0;
@@ -207,7 +208,7 @@ PairTFDNN ::~PairTFDNN()
     //  delete [] map;
   }
   
-  memory->destroy(fingerpts);
+  memory->destroy(fingerprints);
   memory->destroy(eta_G2);
   memory->destroy(eta_G4);
   memory->destroy(zeta);
@@ -238,7 +239,7 @@ void PairTFDNN::coeff(int narg, char **arg)
 
   read_file(arg[2]);
 
-  int count = 0;
+  int count = 0; // count the number of data blocks
   for (int i = 1; i <= n; i++)
     for (int j = i; j <= n; j++)
       if (tf_atom_type[i] >= 0 && tf_atom_type[j] >= 0) {
@@ -384,26 +385,19 @@ void PairTFDNN::compute_fingerprints()
   double pi = 3.14159265358979323846;
   double cutoffsq = cut_global*cut_global;
   int ntypes_combinations = ntypes*(ntypes+1)/2;
-  int n_derivatives = n_etaG2*ntypes*g2_flag + n_lambda*n_zeta*n_etaG4*ntypes_combinations*g4_flag;
-  int n_fingerprints = n_derivatives + ntypes;
+  int n_fingerprints = n_etaG2*ntypes*g2_flag + n_lambda*n_zeta*n_etaG4*ntypes_combinations*g4_flag + ntypes;
   size_peratom_cols = n_fingerprints;
-
   size_rows = atom->nlocal;
-
-
-  
-  //neighbor->build_one(list);
-
   
   // Initialize fingerprnts vector per atom
   double fingerprints_atom[size_peratom_cols];
   for (int i=0;i<size_peratom_cols;i++)
     fingerprints_atom[i] = 0;
 
-  // allocate fingerpts array, size of the array may change at different timestep
+  // allocate fingerprints array, size of the array may change at different timestep
   if (size_rows > 0) {
-    memory->destroy(fingerpts);
-    fingerpts = (float *)malloc(size_rows * size_peratom_cols * sizeof(float));
+    memory->destroy(fingerprints);
+    fingerprints = (float *)malloc(size_rows * size_peratom_cols * sizeof(float));
     // memory->create(fingerpts,size_rows,size_peratom_cols,"tfdnn:fingerpts");
   }
 
@@ -449,12 +443,14 @@ void PairTFDNN::compute_fingerprints()
           function = 0.5*(cos(sqrt(rsq/cutoffsq)*pi)+1);
 
           // G1 fingerprints calculation: sum Fc(Rij)
-          fingerprints_atom[(jtype-1)*(1+n_etaG2)] += function;
-
+          // fingerprints_atom[(jtype-1)*(1+n_etaG2)] += function;
+	  fingerprints_atom[jtype-1] += function;
+	  
           if (g2_flag == 1) {
             // The number of G2 fingerprints depend on the number of given eta_G2 parameters
             for (int m = 0; m < n_etaG2; m++)  {
-              fingerprints_atom[1+m+(jtype-1)*(1+n_etaG2)] += exp(-eta_G2[m]*rsq)*function; // G2 fingerprints calculation 
+              //fingerprints_atom[1+m+(jtype-1)*(1+n_etaG2)] += exp(-eta_G2[m]*rsq)*function; // G2 fingerprints calculation
+	      fingerprints_atom[ntypes+m*ntypes+jtype-1] += exp(-eta_G2[m]*rsq)*function;                                   // G2 fingerprints calculation
             }
           }
 
@@ -483,28 +479,23 @@ void PairTFDNN::compute_fingerprints()
                 // The number of G4 fingerprints depend on the number of given parameters
                 for (int h = 0; h < n_lambda; h++)  {
                   aux = 1+(lambda[h]*cos_theta);
-		  if (aux < 0)
-		    aux = 0;
-		  
-		  for (int l = 0; l < n_zeta; l++)  {
-		    for (int q = 0; q < n_etaG4; q++) {
-		      //double power=pow(aux,zeta[l]);
-		      //printf("======> aux =%f, pow = %f\n",aux,power);
-		      G4 = pow(2,1-zeta[l])*pow(aux,zeta[l])*exp(-eta_G4[q]*(rsq+rsq1+rsq2))*function*function1*function2;
-		      if (kk > jj)   fingerprints_atom[ntypes+n_etaG2*ntypes+h+n_lambda*(l+n_zeta*(q+n_etaG4*type_comb))] += G4;
+		  if (aux > 0){
+		    for (int l = 0; l < n_zeta; l++)  {
+		      for (int q = 0; q < n_etaG4; q++) {
+			G4 = pow(2,1-zeta[l])*pow(aux,zeta[l])*exp(-eta_G4[q]*(rsq+rsq1+rsq2))*function*function1*function2;
+			if (kk > jj)   fingerprints_atom[ntypes+n_etaG2*ntypes+h+n_lambda*(l+n_zeta*(q+n_etaG4*type_comb))] += G4;
+		      }
 		    }
-		  }
-                  
+                  }
                 }
               }          
             }
           }
         }
       }
-      // Writing the fingerprnts vector in the array_atom matrix
+      // Writing The fingerprnts_atom vector in the fingerprints matrix
       for(int n = 0; n < size_peratom_cols; n++) {
-        //fingerpts[i][n] = fingerprints_atom[n];
-	fingerpts[i*size_peratom_cols+n]=fingerprints_atom[n]/(max_fp - min_fp);
+	fingerprints[i*size_peratom_cols+n]=fingerprints_atom[n];
         fingerprints_atom[n] = 0.0;
       }
     } 
@@ -513,213 +504,240 @@ void PairTFDNN::compute_fingerprints()
 }
 
 /*-------------------------------------------------------------*/
-/*
-int ComputeDerivatives::compute_derivatives(int flag)
+void PairTFDNN::compute_derivatives()
 {
   const int inum = list->inum;
   const int* const numneigh = list->numneigh;
-  int total_list = std::accumulate(numneigh, numneigh+inum, 0);
-  int temp = 4*(inum+total_list);
+
+  // Get initial atoms data and neighborlists
+  const int* const ilist = list->ilist;
+  int** const firstneigh = list->firstneigh;
+  int * const type = atom->type;
+  int const ntypes = atom->ntypes;
+  double** const x = atom->x;
+  const int* const mask = atom->mask;
+  int * const tag = atom->tag;
+  double pi = 3.14159265358979323846;
+  int count = 0;
+  double cutoffsq = cut_global*cut_global;
+
+  int ntypes_combinations = ntypes*(ntypes+1)/2;
+  int n_derivatives = n_etaG2*ntypes*g2_flag + n_lambda*n_zeta*n_etaG4*ntypes_combinations*g4_flag + ntypes;
+  size_local_cols = 1 + n_derivatives;
+
+  int total_list = accumulate(numneigh, numneigh+inum, 0);
+  size_local_rows = 4*(inum+total_list);
+
+ 
+  // allocate fingerprints derivative array, size of the array may change at different timestep
+  if (size_local_rows > 0) {
+    memory->destroy(fingerprints_der);
+    fingerprints_der = (float *)malloc(size_local_rows * size_local_cols * sizeof(float));
+  }  
   
-  if (flag) {
-    // Get initial atoms data and neighborlists
-    const int* const ilist = list->ilist;
-    int** const firstneigh = list->firstneigh;
-    int * const type = atom->type;
-    int const ntypes = atom->ntypes;
-    double** const x = atom->x;
-    const int* const mask = atom->mask;
-    int * const tag = atom->tag;
-    double pi = 3.14159265358979323846;
-    int count = 0;
+  
+  // define derivatives (w.r.t other atoms) and derivatives_i (w.r.t itself) array
+  double derivatives[4][size_local_cols];
+  double derivatives_i[4][size_local_cols];
 
-    // Initialize fingerprnts and fingerprnts_i array
-    double fingerprnts[4][size_local_cols]; // derivative w.r.t other atom
-    double fingerprnts_i[4][size_local_cols]; // derivative w.r.t. itself
 
-    int position[ntypes][ntypes];
-    int pos = 0;
-    for (int pos_1 = 0; pos_1 < ntypes; pos_1++)  {
-      for (int pos_2 = pos_1; pos_2 < ntypes; pos_2++)  {
-        position[pos_1][pos_2] = pos;
-        position[pos_2][pos_1] = pos;
-        pos++;  
-      }
-    }
+  
+  for(int n = 0; n < size_local_cols; n++) {
+    derivatives_i[0][n] = 0.0;
+    derivatives_i[1][n] = 0.0;
+    derivatives_i[2][n] = 0.0;
+    derivatives_i[3][n] = 0.0;
+  }
 
-    int j, jnum, jtype, type_comb, k;
-    double Rx_ij, Ry_ij, Rz_ij, rsq, Rx_ik, Ry_ik, Rz_ik, rsq1;
-    double Rx_jk, Ry_jk, Rz_jk, rsq2, cos_theta, aux, G4;
-    double function, function1, function2, dfc, dfc1, dfc2;
-    double ij_factor, ik_factor, jk_factor;
-
-    // The fingerprints and derivatives are calculated for each atom i in the initial data
-    for (int ii = 0; ii < inum; ii++) {
-      const int i = ilist[ii];
-      if (mask[i] & groupbit) {
-
-        // First neighborlist for atom i
-        const int* const jlist = firstneigh[i];
-        jnum = numneigh[i];
-
-        for(int n = 0; n < size_local_cols; n++) {
-          fingerprnts_i[0][n] = 0.0;
-          fingerprnts_i[1][n] = 0.0;
-          fingerprnts_i[2][n] = 0.0;
-          fingerprnts_i[3][n] = 0.0;
-        }
-
-        fingerprnts_i[0][0] = tag[i];
-        fingerprnts_i[0][1] = type[i];
-        fingerprnts_i[0][2] = tag[i];
-        fingerprnts_i[0][3] = type[i];
-        fingerprnts_i[0][4] = tag[i];
-        fingerprnts_i[1][0] = x[i][0];
-        fingerprnts_i[2][0] = x[i][1];
-        fingerprnts_i[3][0] = x[i][2];
-	
-	for(int n = 1; n < size_local_cols; n++) {
-          fingerprnts_i[1][n] = 0.0;
-        }
-
-        // ------------------------------------------------------------------------------------------------------------------------------- 
-        for (int jj = 0; jj < jnum; jj++) {            // Loop for the first neighbor j
-          j = jlist[jj];
-          j &= NEIGHMASK;
-
-          // Element type of atom j. Rij calculation.
-          Rx_ij = x[j][0] - x[i][0];
-          Ry_ij = x[j][1] - x[i][1];
-          Rz_ij = x[j][2] - x[i][2];
-          rsq = Rx_ij*Rx_ij + Ry_ij*Ry_ij + Rz_ij*Rz_ij;
-          jtype = type[j];
-
-          // Cutoff function Fc(Rij) and dFc(Rij) calculation
-          if (rsq < cutsq && rsq>1e-20) { 
-            function = 0.5*(cos(sqrt(rsq/cutsq)*pi)+1);
-            dfc = -pi*0.5*sin(pi*sqrt(rsq/cutsq))/(sqrt(cutsq));
-
-            for(int n = 0; n < size_local_cols; n++) {
-              fingerprnts[0][n] = 0.0;
-              fingerprnts[1][n] = 0.0;
-              fingerprnts[2][n] = 0.0;
-              fingerprnts[3][n] = 0.0;
-            }
-
-            fingerprnts[0][0] = tag[i];
-            fingerprnts[0][1] = type[i];
-            if (j>inum) {fingerprnts[0][2] = j;}
-            if (j<=inum)  {fingerprnts[0][2] = tag[j];}
-            fingerprnts[0][3] = jtype;
-            fingerprnts[0][4] = tag[j];
-            fingerprnts[1][0] = x[j][0];
-            fingerprnts[2][0] = x[j][1];
-            fingerprnts[3][0] = x[j][2];
-
-	    for(int n = 1; n < size_local_cols; n++) {
-              fingerprnts[1][n] = 0.0;
-            }
-
-            if (g2_flag == 1) {
-              // The number of G2 fingerprints and derivatives depend on the number of given eta_G2 parameters
-              for (int m = 0; m < n_etaG2; m++)  {
-                fingerprnts[1][m*ntypes+jtype] += exp(-eta_G2[m]*rsq)*(dfc/sqrt(rsq)-2*eta_G2[m]*function)*Rx_ij; // G2 derivatives in the x direction
-                fingerprnts[2][m*ntypes+jtype] += exp(-eta_G2[m]*rsq)*(dfc/sqrt(rsq)-2*eta_G2[m]*function)*Ry_ij; // G2 derivatives in the y direction
-                fingerprnts[3][m*ntypes+jtype] += exp(-eta_G2[m]*rsq)*(dfc/sqrt(rsq)-2*eta_G2[m]*function)*Rz_ij; // G2 derivatives in the z direction
-
-                fingerprnts_i[1][m*ntypes+jtype] += -exp(-eta_G2[m]*rsq)*(dfc/sqrt(rsq)-2*eta_G2[m]*function)*Rx_ij; // G2 derivatives in the x direction
-                fingerprnts_i[2][m*ntypes+jtype] += -exp(-eta_G2[m]*rsq)*(dfc/sqrt(rsq)-2*eta_G2[m]*function)*Ry_ij; // G2 derivatives in the y direction
-                fingerprnts_i[3][m*ntypes+jtype] += -exp(-eta_G2[m]*rsq)*(dfc/sqrt(rsq)-2*eta_G2[m]*function)*Rz_ij; // G2 derivatives in the z direction 
-              }
-            }
-
-            // ------------------------------------------------------------------------------------------------------------------------------- 
-            if (g4_flag == 1) {
-              for (int kk = 0; kk < jnum; kk++) {            // Loop for the second neighbor k
-                k = jlist[kk];
-                k &= NEIGHMASK;
-
-                // Rik (rsq1) and Rjk (rsq2) calculation. G4 fingerprints and derivatives are only calculated if Rik<Rc and Rjk<Rc
-                Rx_ik = x[k][0] - x[i][0];
-                Ry_ik = x[k][1] - x[i][1];
-                Rz_ik = x[k][2] - x[i][2];
-                rsq1 = Rx_ik*Rx_ik + Ry_ik*Ry_ik + Rz_ik*Rz_ik;
-                Rx_jk = x[k][0] - x[j][0];
-                Ry_jk = x[k][1] - x[j][1];
-                Rz_jk = x[k][2] - x[j][2];
-                rsq2 = Rx_jk*Rx_jk + Ry_jk*Ry_jk + Rz_jk*Rz_jk;
-                cos_theta = (rsq+rsq1-rsq2)/(2*sqrt(rsq*rsq1));               // cos(theta)
-                type_comb = position[jtype-1][type[k]-1];
-
-                if (rsq1 < cutsq && rsq1>1e-20 && rsq2 < cutsq && rsq2>1e-20) {
-                  function1 = 0.5*(cos(sqrt(rsq1/cutsq)*pi)+1);               // fc(Rik)
-                  function2 = 0.5*(cos(sqrt(rsq2/cutsq)*pi)+1);               // fc(Rjk)
-                  dfc2 = -pi*0.5*sin(pi*sqrt(rsq2/cutsq))/(sqrt(cutsq));      // dFc(Rjk)
-                  dfc1 = -pi*0.5*sin(pi*sqrt(rsq1/cutsq))/(sqrt(cutsq));      // dFc(Rik)
-
-                  // The number of G4 fingerprints and derivatives depend on the number of given parameters
-                  for (int h = 0; h < n_lambda; h++)  {
-                    aux = 1+(lambda[h]*cos_theta);
-                    if (aux > 0)  {
-                      for (int l = 0; l < n_zeta; l++)  {
-                        for (int q = 0; q < n_etaG4; q++) {
-                          G4 = pow(2,1-zeta[l])*pow(aux,zeta[l])*exp(-eta_G4[q]*(rsq+rsq1+rsq2))*function*function1*function2;
-
-                          // Calculation of factors necessary for the derivatives of G4 with respect to atom j
-                          ij_factor = (1/sqrt(rsq*rsq1)-cos_theta/rsq)*lambda[h]*zeta[l]/aux-2*eta_G4[q]+dfc/(sqrt(rsq)*function);
-                          ik_factor = (1/sqrt(rsq*rsq1)-cos_theta/rsq1)*lambda[h]*zeta[l]/aux-2*eta_G4[q]+dfc1/(sqrt(rsq1)*function1);
-                          jk_factor = -(1/sqrt(rsq*rsq1))*lambda[h]*zeta[l]/aux-2*eta_G4[q]+dfc2/(sqrt(rsq2)*function2);
-
-                          // G4 derivatives calculation
-                          if ( kk != jj ) {
-                            // G4 derivatives with respect to x, y, z directions
-                            fingerprnts[1][n_etaG2*ntypes+h+n_lambda*(l+n_zeta*(q+n_etaG4*type_comb))+1]  += G4*(ij_factor*Rx_ij-jk_factor*Rx_jk);
-                            fingerprnts[2][n_etaG2*ntypes+h+n_lambda*(l+n_zeta*(q+n_etaG4*type_comb))+1]  += G4*(ij_factor*Ry_ij-jk_factor*Ry_jk);
-                            fingerprnts[3][n_etaG2*ntypes+h+n_lambda*(l+n_zeta*(q+n_etaG4*type_comb))+1]  += G4*(ij_factor*Rz_ij-jk_factor*Rz_jk);
-                          }
-                          if ( kk > jj ) {
-                            fingerprnts_i[1][n_etaG2*ntypes+h+n_lambda*(l+n_zeta*(q+n_etaG4*type_comb))+1]  += -G4*(ij_factor*Rx_ij-ik_factor*Rx_ik);
-                            fingerprnts_i[2][n_etaG2*ntypes+h+n_lambda*(l+n_zeta*(q+n_etaG4*type_comb))+1]  += -G4*(ij_factor*Ry_ij-ik_factor*Ry_ik);
-                            fingerprnts_i[3][n_etaG2*ntypes+h+n_lambda*(l+n_zeta*(q+n_etaG4*type_comb))+1]  += -G4*(ij_factor*Rz_ij-ik_factor*Rz_ik);
-                          }
-                        }
-                      }
-                    }
-                  }
-                }          
-              }
-            }
-            // Writing the fingerprnts array in the array_atom matrix
-            for(int n = 0; n < size_local_cols; n++) {
-              alocal[0+count*4][n] = fingerprnts[0][n];
-              alocal[1+count*4][n] = fingerprnts[1][n];
-              alocal[2+count*4][n] = fingerprnts[2][n];
-              alocal[3+count*4][n] = fingerprnts[3][n];
-            }
-            count++;
-          }
-        }
-        // Writing the fingerprnts_i array in the array_atom matrix
-        for(int n = 0; n < size_local_cols; n++) {
-          alocal[0+count*4][n] = fingerprnts_i[0][n];
-          alocal[1+count*4][n] = fingerprnts_i[1][n];
-          alocal[2+count*4][n] = fingerprnts_i[2][n];
-          alocal[3+count*4][n] = fingerprnts_i[3][n];
-        }
-        count++;
-      } 
+  int position[ntypes][ntypes];
+  int pos = 0;
+  for (int pos_1 = 0; pos_1 < ntypes; pos_1++)  {
+    for (int pos_2 = pos_1; pos_2 < ntypes; pos_2++)  {
+      position[pos_1][pos_2] = pos;
+      position[pos_2][pos_1] = pos;
+      pos++;  
     }
   }
-  return temp;
+
+  int j, jnum, jtype, type_comb, k;
+  double Rx_ij, Ry_ij, Rz_ij, rsq, Rx_ik, Ry_ik, Rz_ik, rsq1;
+  double Rx_jk, Ry_jk, Rz_jk, rsq2, cos_theta, aux, G4;
+  double function, function1, function2, dfc, dfc1, dfc2;
+  double ij_factor, ik_factor, jk_factor;
+
+  // The derivatives are calculated for each atom i in the initial data
+  for (int ii = 0; ii < inum; ii++) {
+    const int i = ilist[ii];
+    if (mask[i]) {
+
+      // First neighborlist for atom i
+      const int* const jlist = firstneigh[i];
+      jnum = numneigh[i];
+
+      derivatives_i[0][0] = tag[i];
+      derivatives_i[0][1] = type[i];
+      derivatives_i[0][2] = tag[i];
+      derivatives_i[0][3] = type[i];
+      derivatives_i[0][4] = tag[i];
+      derivatives_i[1][0] = x[i][0];
+      derivatives_i[2][0] = x[i][1];
+      derivatives_i[3][0] = x[i][2];
+
+      for(int n = 1; n < size_local_cols; n++) {
+	derivatives_i[1][n] = 0.0;
+	derivatives_i[2][n] = 0.0;
+	derivatives_i[3][n] = 0.0;
+      }
+
+      for(int n = 0; n < size_local_cols; n++) {
+	derivatives[0][n] = 0.0;
+	derivatives[1][n] = 0.0;
+	derivatives[2][n] = 0.0;
+	derivatives[3][n] = 0.0;
+      }
+
+      // Loop for the first neighbor j
+      for (int jj = 0; jj < jnum; jj++) {            
+	j = jlist[jj];
+	j &= NEIGHMASK;
+
+	// Element type of atom j. Rij calculation.
+	Rx_ij = x[j][0] - x[i][0];
+	Ry_ij = x[j][1] - x[i][1];
+	Rz_ij = x[j][2] - x[i][2];
+	rsq = Rx_ij*Rx_ij + Ry_ij*Ry_ij + Rz_ij*Rz_ij;
+	jtype = type[j];
+
+	// Cutoff function Fc(Rij) and dFc(Rij) calculation
+	if (rsq < cutoffsq && rsq>1e-20) { 
+	  function = 0.5*(cos(sqrt(rsq/cutoffsq)*pi)+1);
+	  dfc = -pi*0.5*sin(pi*sqrt(rsq/cutoffsq))/(sqrt(cutoffsq));
+
+	  derivatives[0][0] = tag[i];
+	  derivatives[0][1] = type[i];
+	  if (j>inum) {derivatives[0][2] = j;}
+	  if (j<=inum)  {derivatives[0][2] = tag[j];}
+	  derivatives[0][3] = jtype;
+	  derivatives[0][4] = tag[j];
+	  derivatives[1][0] = x[j][0];
+	  derivatives[2][0] = x[j][1];
+	  derivatives[3][0] = x[j][2];
+	  
+	  for(int n = 1; n < size_local_cols; n++) {
+	    derivatives[1][n] = 0.0;
+	    derivatives[2][n] = 0.0;
+	    derivatives[3][n] = 0.0;
+	  }
+
+	  derivatives[1][jtype] = dfc*Rx_ij;
+	  derivatives[2][jtype] = dfc*Ry_ij;
+	  derivatives[3][jtype] = dfc*Rz_ij;
+	  
+	  derivatives_i[1][jtype] += -dfc*Rx_ij;
+	  derivatives_i[2][jtype] += -dfc*Ry_ij;
+	  derivatives_i[3][jtype] += -dfc*Rz_ij;
+	  
+	  if (g2_flag == 1) {
+	    // The number of G2 derivatives depend on the number of given eta_G2 parameters
+	    for (int m = 0; m < n_etaG2; m++)  {
+	      derivatives[1][ntypes+m*ntypes+jtype] = exp(-eta_G2[m]*rsq)*(dfc/sqrt(rsq)-2*eta_G2[m]*function)*Rx_ij; // G2 derivatives in the x direction
+	      derivatives[2][ntypes+m*ntypes+jtype] = exp(-eta_G2[m]*rsq)*(dfc/sqrt(rsq)-2*eta_G2[m]*function)*Ry_ij; // G2 derivatives in the y direction
+	      derivatives[3][ntypes+m*ntypes+jtype] = exp(-eta_G2[m]*rsq)*(dfc/sqrt(rsq)-2*eta_G2[m]*function)*Rz_ij; // G2 derivatives in the z direction
+
+	      derivatives_i[1][ntypes+m*ntypes+jtype] += -exp(-eta_G2[m]*rsq)*(dfc/sqrt(rsq)-2*eta_G2[m]*function)*Rx_ij; // G2 derivatives (w.r.t itself) in the x direction
+	      derivatives_i[2][ntypes+m*ntypes+jtype] += -exp(-eta_G2[m]*rsq)*(dfc/sqrt(rsq)-2*eta_G2[m]*function)*Ry_ij; // G2 derivatives (w.r.t itself) in the y direction
+	      derivatives_i[3][ntypes+m*ntypes+jtype] += -exp(-eta_G2[m]*rsq)*(dfc/sqrt(rsq)-2*eta_G2[m]*function)*Rz_ij; // G2 derivatives (w.r.t itself) in the z direction 
+	    }
+	  }
+
+	  /* ------------------------------------------------------------------------------------------------------------------------------- */
+	  if (g4_flag == 1) {
+	    for (int kk = 0; kk < jnum; kk++) {            // Loop for the second neighbor k
+	      k = jlist[kk];
+	      k &= NEIGHMASK;
+
+	      // Rik (rsq1) and Rjk (rsq2) calculation. G4 derivatives are only calculated if Rik<Rc and Rjk<Rc
+	      Rx_ik = x[k][0] - x[i][0];
+	      Ry_ik = x[k][1] - x[i][1];
+	      Rz_ik = x[k][2] - x[i][2];
+	      rsq1 = Rx_ik*Rx_ik + Ry_ik*Ry_ik + Rz_ik*Rz_ik;
+	      Rx_jk = x[k][0] - x[j][0];
+	      Ry_jk = x[k][1] - x[j][1];
+	      Rz_jk = x[k][2] - x[j][2];
+	      rsq2 = Rx_jk*Rx_jk + Ry_jk*Ry_jk + Rz_jk*Rz_jk;
+	      cos_theta = (rsq+rsq1-rsq2)/(2*sqrt(rsq*rsq1));               // cos(theta)
+	      type_comb = position[jtype-1][type[k]-1];
+
+	      if (cos_theta < -1)  cos_theta = -1;
+	      if (cos_theta > 1)   cos_theta = 1;
+
+	      if (rsq1 < cutoffsq && rsq1>1e-20 && rsq2 < cutoffsq && rsq2>1e-20) {
+		function1 = 0.5*(cos(sqrt(rsq1/cutoffsq)*pi)+1);               // fc(Rik)
+		function2 = 0.5*(cos(sqrt(rsq2/cutoffsq)*pi)+1);               // fc(Rjk)
+		dfc2 = -pi*0.5*sin(pi*sqrt(rsq2/cutoffsq))/(sqrt(cutoffsq));      // dFc(Rjk)
+		dfc1 = -pi*0.5*sin(pi*sqrt(rsq1/cutoffsq))/(sqrt(cutoffsq));      // dFc(Rik)
+		
+		// The number of G4 derivatives depend on the number of given parameters
+		for (int h = 0; h < n_lambda; h++)  {
+		  aux = 1+(lambda[h]*cos_theta);
+		  if (aux > 0)  {
+		    for (int l = 0; l < n_zeta; l++)  {
+		      for (int q = 0; q < n_etaG4; q++) {
+			G4 = pow(2,1-zeta[l])*pow(aux,zeta[l])*exp(-eta_G4[q]*(rsq+rsq1+rsq2))*function*function1*function2;
+
+			// Calculation of factors necessary for the derivatives of G4 with respect to atom j
+			ij_factor = (1/sqrt(rsq*rsq1)-cos_theta/rsq)*lambda[h]*zeta[l]/aux-2*eta_G4[q]+dfc/(sqrt(rsq)*function);
+			ik_factor = (1/sqrt(rsq*rsq1)-cos_theta/rsq1)*lambda[h]*zeta[l]/aux-2*eta_G4[q]+dfc1/(sqrt(rsq1)*function1);
+			jk_factor = -(1/sqrt(rsq*rsq1))*lambda[h]*zeta[l]/aux-2*eta_G4[q]+dfc2/(sqrt(rsq2)*function2);
+
+			// G4 derivatives calculation
+			if ( kk != jj ) {
+			  // G4 derivatives with respect to x, y, z directions
+			  derivatives[1][ntypes+n_etaG2*ntypes+h+n_lambda*(l+n_zeta*(q+n_etaG4*type_comb))+1]  += G4*(ij_factor*Rx_ij-jk_factor*Rx_jk);
+			  derivatives[2][ntypes+n_etaG2*ntypes+h+n_lambda*(l+n_zeta*(q+n_etaG4*type_comb))+1]  += G4*(ij_factor*Ry_ij-jk_factor*Ry_jk);
+			  derivatives[3][ntypes+n_etaG2*ntypes+h+n_lambda*(l+n_zeta*(q+n_etaG4*type_comb))+1]  += G4*(ij_factor*Rz_ij-jk_factor*Rz_jk);
+			}
+			if ( kk > jj ) {
+			  derivatives_i[1][ntypes+n_etaG2*ntypes+h+n_lambda*(l+n_zeta*(q+n_etaG4*type_comb))+1]  += -G4*(ij_factor*Rx_ij+ik_factor*Rx_ik);
+			  derivatives_i[2][ntypes+n_etaG2*ntypes+h+n_lambda*(l+n_zeta*(q+n_etaG4*type_comb))+1]  += -G4*(ij_factor*Ry_ij+ik_factor*Ry_ik);
+			  derivatives_i[3][ntypes+n_etaG2*ntypes+h+n_lambda*(l+n_zeta*(q+n_etaG4*type_comb))+1]  += -G4*(ij_factor*Rz_ij+ik_factor*Rz_ik);
+			}
+		      }
+		    }
+		  }
+		}
+	      }          
+	    } 
+	  } // end loop of k
+
+	  // Writing the derivatives array in the array_atom matrix, for derivative of atom i w.r.t. atom j
+	  for (int m = 0; m < 3; m++) 
+	    for(int n = 0; n < size_local_cols; n++)
+	      fingerprints_der[(4*count+m)*size_local_cols+n] = derivatives[m][n];
+	  count++;
+	} 
+      } // loop of j
+
+      // Writing the derivatives_i array in the array_atom matrix, for derivative of atom i w.r.t. atom i
+      for (int m = 0; m < 3; m++) 
+	    for(int n = 0; n < size_local_cols; n++)
+	      fingerprints_der[(4*count+m)*size_local_cols+n] = derivatives[m][n];
+      count++;
+    } 
+  }
+
+  
 }
 
-*/
+
 
 /* ---------------------------------------------------------------------- */
 
 void PairTFDNN::compute(int eflag, int vflag)
 {
   compute_fingerprints();
+
+  compute_derivatives();
   
   dims = new int64_t[ndims]; // allocate dims vector
     
@@ -732,7 +750,7 @@ void PairTFDNN::compute(int eflag, int vflag)
   int ndata = sizeof(float)*dims[1]*dims[2]; 
      
   //create tensorflow input and output tensors for inference   
-  InputValues[0] = TF_NewTensor(TF_FLOAT, dims, ndims, fingerpts, ndata, &NoOpDeallocator, 0);
+  InputValues[0] = TF_NewTensor(TF_FLOAT, dims, ndims, fingerprints, ndata, &NoOpDeallocator, 0);
     
   if (InputValues[0] == NULL)
     error->all(FLERR,"Failed TF_NewTensor\n");
