@@ -38,6 +38,7 @@ class PairTFDNN : public Pair {
   static void NoOpDeallocator(void* , size_t , void*);
   void create_tensorflow_model();
   void compute_fingerprints();
+  void compute_derivatives();
   int getwords(char*, char**, int);
  
 
@@ -57,9 +58,13 @@ private:
   int g2_flag;                // = 1, if ACSF G2 descriptor is set
   int g4_flag;                // = 1, if ACSF G4 descriptor is set
 
-  float *fingerpts;          // fingerprints
-  int size_peratom_cols;      // cols of fingerpts array, = numnber of fingerprints
-  int size_rows;              // rows of fingerpts array, = number of local atom
+  float *fingerprints;          // fingerprints pointer, 1D storage for 2D array
+  int size_peratom_cols;      // cols of fingerprints array, = numnber of fingerprints
+  int size_rows;              // rows of fingerprints array, = number of local atom
+
+  float *fingerprints_der;    // fignerprints derivatives, 1D storage for 2D array
+
+  int size_local_rows, size_local_cols; // size of fingerprints derivatives
 
   int64_t *dims;               // dims vector define the size of the input tensors, e.g. {1,2,3} means a 1x2x3 tensor
   // float *data; // define vector for fingerprints
