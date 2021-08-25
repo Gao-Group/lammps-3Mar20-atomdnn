@@ -48,9 +48,7 @@ private:
   double *zeta;               // zeta parameters for ACSF G4 descriptor 
   double *eta_G4;             // eta parameters for ACSF G4 descriptor 
   double *lambda;             // lambda parameters for ACSF G4 descriptor 
-  float max_fp;               // maximum value of fingerprints used for nomalization
-  float min_fp;               // minimum value of fingerprints used for nomalization
-  int n_parameter;            // number of parameters for descriptor, = 4 for ACSF  
+  int n_parameter;            // number of parameters for descriptor, = 4 for ACSF
   int n_etaG2;                // number of eta parameters for ACSF G2 descriptor
   int n_etaG4;                // number of eta parameters for ACSF G4 descriptor
   int n_zeta;                 // number of zeta parameters for ACSF G4 descriptor
@@ -74,10 +72,14 @@ private:
 protected:
   double cut_global;
   int tf_input_number, tf_output_number;
+  int tf_nelement;               // number of elements defined in potential 
+  char **tf_element;             // names of elements defined in potential  
+  int *map;                      // mapping from atom types to elements 
+  int me;
+  
   int ndims; // dimension of input tensor
-  int *tf_atom_type;
   char *tf_model_dir;
-  char **tf_input_tensor,**tf_output_tensor,**tf_output_tag;
+  char **tf_input_tensor,**tf_output_tensor,**tf_output_tag,**tf_input_tag;
   char *tf_model_tags = "serve";
   TF_Graph *Graph;
   TF_Output *Input,*Output;

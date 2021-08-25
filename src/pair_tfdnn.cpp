@@ -60,108 +60,175 @@ read the information of descriptor parameters and nerual network
 ---------------------------------------------------------------------------------------------*/
 void PairTFDNN::read_file(char *filename)
 {
-  char s[MAXLINE];
+  char line[MAXLINE];
+  char *ptr;
   char *args[MAXWORDS];
   char keyword[MAXWORDS];
   char parameter[MAXWORDS];
+  int eof=0;
+  int n, nwords;
+  
   n_etaG2 = 0;
   n_etaG4 = 0;
   n_zeta = 0;
   n_lambda = 0;
   g2_flag = 0;
   g4_flag = 0;
-  max_fp = 1.0;
-  min_fp = 0.0;
 
+  MPI_Comm_rank(world,&me);
+  
   FILE *fp = NULL;
-  fp = force->open_potential(filename);
-  if (fp == NULL){
-    char str[128];
-    snprintf(str, 128,"Cannot open TensorflowDNN potential file %s", filename);
-    error->one(FLERR,str);
-  }
-    
-  while(!feof(fp)){
-    utils::sfgets(FLERR,s,MAXLINE,fp,filename,error);
 
-    if (!strncmp(s,"tf_model_dir",12)){
-      sscanf(s,"%s %s",keyword,parameter);
-      tf_model_dir = new char[strlen(parameter)];
-      strcpy(tf_model_dir,parameter);
+  char *para_file = new char(strlen(filename) + strlen("/parameter"));
+  strcpy(para_file, filename);
+  strcat(para_file,"/parameter");
+
+  // read potential file on root proc 0
+
+  if (me == 0){
+    fp = force->open_potential(para_file);
+    if (fp == NULL){
+      char str[128];
+      snprintf(str, 128,"Cannot open TensorflowDNN potential file %s", filename);
+      error->one(FLERR,str);
     }
+  }
 
-    else if (!strncmp(s,"input",5)){     
-      sscanf(s,"%s %d",keyword,&tf_input_number);
-      tf_atom_type = new int[tf_input_number];
-      tf_input_tensor = new char* [tf_input_number];
-      for (int i=0;i<tf_input_number;i++){
-	utils::sfgets(FLERR,s,MAXLINE,fp,filename,error);
-	sscanf(s,"%d %s",&tf_atom_type[i],parameter);
-	tf_input_tensor[i] = new char[strlen(parameter)];
-	strcpy(tf_input_tensor[i],parameter);
+  while (1){
+
+    // read line in root proc 0 and then broadcast the line
+    if (me == 0){
+      ptr = fgets(line,MAXLINE,fp);
+      if (ptr == NULL){  
+	eof = 1;
+	fclose(fp);
+      }
+      else
+	n = strlen(line) + 1;
+    }
+    MPI_Bcast(&eof,1,MPI_INT,0,world);
+    if (eof) break;
+    MPI_Bcast(&n,1,MPI_INT,0,world);
+    MPI_Bcast(line,n,MPI_CHAR,0,world);
+
+    // strip comment, skip line if blank
+    if ((ptr = strchr(line,'#'))) *ptr = '\0';
+    nwords = atom->count_words(line);
+    if (nwords == 0) continue;
+
+    if (!strncmp(line,"tf_model_dir",12)){
+      sscanf(line,"%s %s",keyword,parameter);
+      tf_model_dir = new char[strlen(filename)+strlen("/")+strlen(parameter)];
+      strcpy(tf_model_dir, fileneme);
+      strcat(tf_model_dir,"/");
+      strcat(tf_model_dir,parameter);
+    }
+    else if (!strncmp(line,"element",7)){
+      //sscanf(line,"%s %d",keyword,&tf_nelement);
+      tf_nelement = getwords(line,args,MAXARGS)-1;
+      tf_element = new char*[tf_nelement];
+      for (int i=0;i<tf_nelement;i++){
+	tf_element[i] = new char[strlen(args[i+1])];
+	strcpy(tf_element[i],args[i+1]);
       }
     }
 
-    else if (!strncmp(s,"output",6)){     
-      sscanf(s,"%s %d",keyword,&tf_output_number);
+    else if (!strncmp(line,"input",5)){     
+      sscanf(line,"%s %d",keyword,&tf_input_number);
+      tf_input_tag = new char*[tf_input_number];
+      tf_input_tensor = new char* [tf_input_number];
+      for (int i=0;i<tf_input_number;i++){
+	
+	// read line on root proc 0 and then broadcast the line
+	if (me == 0){
+	  utils::sfgets(FLERR,line,MAXLINE,fp,filename,error);
+	  n = strlen(line) + 1;
+	}
+	MPI_Bcast(&n,1,MPI_INT,0,world);
+	MPI_Bcast(line,n,MPI_CHAR,0,world);
+
+	// extract tf input tensor tag and names
+	sscanf(line,"%s %*s",parameter);
+	tf_input_tag[i] = new char[strlen(parameter)];
+	strcpy(tf_input_tag[i],parameter);
+	sscanf(line,"%*s %s",parameter);
+	tf_input_tensor[i] = new char[strlen(parameter)];
+	strcpy(tf_input_tensor[i],parameter);	
+      }
+    }
+
+    else if (!strncmp(line,"output",6)){     
+      sscanf(line,"%s %d",keyword,&tf_output_number);
       tf_output_tag = new char*[tf_output_number];
       tf_output_tensor = new char*[tf_output_number];
       for (int i=0;i<tf_output_number;i++){
-	utils::sfgets(FLERR,s,MAXLINE,fp,filename,error);
-	sscanf(s,"%s %*s",parameter);
+
+	// read line on root proc 0 and then broadcast the line
+	if (me == 0){
+	  utils::sfgets(FLERR,line,MAXLINE,fp,filename,error);
+	  n = strlen(line) + 1;
+	}
+	MPI_Bcast(&n,1,MPI_INT,0,world);
+	MPI_Bcast(line,n,MPI_CHAR,0,world);
+
+	// extract tf output tensor tag and names
+	sscanf(line,"%s %*s",parameter);
 	tf_output_tag[i] = new char[strlen(parameter)];
 	strcpy(tf_output_tag[i],parameter);
-	sscanf(s,"%*s %s",parameter);
+	sscanf(line,"%*s %s",parameter);
 	tf_output_tensor[i] = new char[strlen(parameter)];
 	strcpy(tf_output_tensor[i],parameter);
       } 
     }
 
-    else if (!strncmp(s,"cutoff",6))
-      sscanf(s,"%s %lf",keyword,&cut_global);
-
-    else if (!strncmp(s,"max_fp",6))
-      sscanf(s,"%s %f",keyword,&max_fp);
-
-    else if (!strncmp(s,"min_fp",6))
-      sscanf(s,"%s %f",keyword,&min_fp);
-      
-    else if (!strncmp(s,"descriptor",10)){
-      sscanf(s,"%s %s %d",keyword,parameter,&n_parameter);
+    else if (!strncmp(line,"cutoff",6))
+      sscanf(line,"%s %lf",keyword,&cut_global);
+    
+    else if (!strncmp(line,"descriptor",10)){
+      sscanf(line,"%s %s %d",keyword,parameter,&n_parameter);
       descriptor = new char[strlen(parameter)];
       strcpy(descriptor,parameter);
       if (!strncmp(descriptor,"acsf",4)){
 	for (int ip=0;ip<n_parameter;ip++){
-	  utils::sfgets(FLERR,s,MAXLINE,fp,filename,error);
-	  if (!strncmp(s,"etaG2",5)){
-	    n_etaG2 = getwords(s,args,MAXARGS) -1;
+
+	  // read line on root proc 0 and then broadcast the line
+	  if (me == 0){
+	    utils::sfgets(FLERR,line,MAXLINE,fp,filename,error);
+	    n = strlen(line) + 1;
+	  }
+	  MPI_Bcast(&n,1,MPI_INT,0,world);
+	  MPI_Bcast(line,n,MPI_CHAR,0,world);
+
+	  // extract descriptor parameters
+	  if (!strncmp(line,"etaG2",5)){
+	    n_etaG2 = getwords(line,args,MAXARGS) -1;
 	    eta_G2 = new double[n_etaG2];
 	    for (int i=0;i<n_etaG2;i++)
 	      eta_G2[i] = strtod(args[i+1],NULL);
 	  }
-	  else if (!strncmp(s,"etaG4",5)){
-	    n_etaG4 = getwords(s,args,MAXARGS) -1;
+	  else if (!strncmp(line,"etaG4",5)){
+	    n_etaG4 = getwords(line,args,MAXARGS) -1;
 	    eta_G4 = new double[n_etaG4];
 	    for (int i=0;i<n_etaG4;i++)
 	      eta_G4[i] = strtod(args[i+1],NULL);
 	  }
-	  else if (!strncmp(s,"zeta",4)){
-	    n_zeta = getwords(s,args,MAXARGS) -1;
+	  else if (!strncmp(line,"zeta",4)){
+	    n_zeta = getwords(line,args,MAXARGS) -1;
 	    zeta = new double[n_zeta];
 	    for (int i=0;i<n_zeta;i++)
 	      zeta[i] = strtod(args[i+1],NULL);
 	  }
-	  else if (!strncmp(s,"lambda",6)){
-	    n_lambda = getwords(s,args,MAXARGS) -1;
+	  else if (!strncmp(line,"lambda",6)){
+	    n_lambda = getwords(line,args,MAXARGS) -1;
 	    lambda = new double[n_lambda];
 	    for (int i=0;i<n_lambda;i++)
 	      lambda[i] = strtod(args[i+1],NULL);
 	  }
 	}
-      } // end of reading acsf descriptor
+      } 
     } // end of reading descriptor information      
   } // end of while
-
+ 
     // check reading error and set flag
   if (!strncmp(descriptor,"acsf",4)){
     if (n_etaG2 == 0)
@@ -177,7 +244,6 @@ void PairTFDNN::read_file(char *filename)
     else
       g4_flag = 1;
   }    
-  fclose(fp);
 }
 
 /* ---------------------------------------------------------------------- */
@@ -205,7 +271,7 @@ PairTFDNN ::~PairTFDNN()
   if (allocated) {
     memory->destroy(setflag);
     memory->destroy(cutsq);
-    //  delete [] map;
+     delete [] map;
   }
   
   memory->destroy(fingerprints);
@@ -216,7 +282,7 @@ PairTFDNN ::~PairTFDNN()
   memory->destroy(tf_model_dir);
   memory->destroy(tf_input_tensor);
   memory->destroy(tf_output_tensor);
-  memory->destroy(tf_atom_type);
+  memory->destroy(tf_element);
   memory->destroy(tf_output_tag);
 
   
@@ -234,34 +300,52 @@ void PairTFDNN::coeff(int narg, char **arg)
   
   if (!allocated) allocate();
 
-  if (strcmp(arg[0],"*") != 0 || strcmp(arg[1],"*") != 0)
+  if (narg != 3 + atom->ntypes)
     error->all(FLERR,"Incorrect args for pair coefficients");
 
+  if (strcmp(arg[0],"*") != 0 || strcmp(arg[1],"*") != 0)
+    error->all(FLERR,"Incorrect args for pair coefficients");
+  
   read_file(arg[2]);
 
-  int count = 0; // count the number of data blocks
-  for (int i = 1; i <= n; i++)
-    for (int j = i; j <= n; j++)
-      if (tf_atom_type[i] >= 0 && tf_atom_type[j] >= 0) {
-        setflag[i][j] = 1;
-        count++;
+  int element_count = 1; // count the unique atom type
+  int element_check = 0; // check if the element is set correctly 
+  map[0] = -1; // first element of map is not used
+  for (int i=0;i<n;i++){
+    for (int j=0;j<tf_nelement;j++){
+      if (strcasecmp(arg[3+i],tf_element[j]) == 0){
+	map[i+1] = j+1;
+	element_check=1;
       }
-  if (count == 0) error->all(FLERR,"Incorrect args for pair coefficients");
+    }
+    if (element_check==1)
+      element_check=0;
+    else
+      error->all(FLERR,"Incorrect args for pair coefficients");
+    if (i>1 & map[i]!=map[i+1])
+      element_count++;
+  }
+
+  if (element_count!=tf_nelement)
+    error->all(FLERR,"Incorrect args for pair coefficients");
   
 
-  /*
-  // set setflag i,j for type pairs where both are assigned by input tensors
+  // clear setflag since coeff() called once with I,J = * *
+  n = atom->ntypes;
+  for (int i = 1; i <= n; i++)
+    for (int j = i; j <= n; j++)
+      setflag[i][j] = 0;
 
+  // set setflag i,j for type pairs where both are mapped to elements
   int count = 0;
   for (int i = 1; i <= n; i++)
     for (int j = i; j <= n; j++)
-      if (tf_atom_type[i] >= 0 && tf_atom_type[j] >= 0) {
+      if (map[i] >= 0 && map[j] >= 0) {
         setflag[i][j] = 1;
         count++;
       }
-  if (count == 0) error->all(FLERR,"Incorrect args for pair coefficients");
 
-  */
+  if (count == 0) error->all(FLERR,"Incorrect args for pair coefficients");
 }
 /* ---------------------------------------------------------------------- */
 void PairTFDNN::allocate()
@@ -272,6 +356,7 @@ void PairTFDNN::allocate()
   setflag = memory->create(setflag,n+1,n+1,"pair:setflag");
   cutsq = memory->create(cutsq,n+1,n+1,"pair:cutsq");
 
+  map = new int[n+1];
   /*
   memory->create(setflag,n+1,n+1,"pair:setflag");
   for (int i = 1; i <= n; i++)
@@ -737,7 +822,7 @@ void PairTFDNN::compute(int eflag, int vflag)
 {
   compute_fingerprints();
 
-  compute_derivatives();
+  //compute_derivatives();
   
   dims = new int64_t[ndims]; // allocate dims vector
     
@@ -811,4 +896,15 @@ int PairTFDNN::getwords(char *line, char *words[], int maxwords)
     if(nwords >= maxwords)
       return nwords;
   }
+}
+
+/*--------------------------------------------------------------*/
+int strcasecmp(const char *s1, const char *s2) {
+    const unsigned char *us1 = (const u_char *)s1,
+                        *us2 = (const u_char *)s2;
+
+    while (tolower(*us1) == tolower(*us2++))
+        if (*us1++ == '\0')
+            return (0);
+    return (tolower(*us1) - tolower(*--us2));
 }
