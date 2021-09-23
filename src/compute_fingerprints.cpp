@@ -23,12 +23,13 @@ using namespace LAMMPS_NS;
 
 ComputeFingerprints::ComputeFingerprints(LAMMPS *lmp, int narg, char **arg) :
   Compute(lmp, narg, arg), 
-  cutsq(0.0), list(NULL), eta_G2(NULL), zeta(NULL), eta_G4(NULL), lambda(NULL), fingerpts(NULL)
+  cutsq(0.0), list(NULL), eta_G2(NULL), zeta(NULL), eta_G4(NULL), lambda(NULL), fingerprints(NULL)
 
 {
 
   if (narg < 4) error->all(FLERR,"Illegal compute fingerprints command");
 
+  // read ACSF parameters and compute the number of fingerprints
   double cut = atof(arg[3]);
   cutsq = cut*cut;
 
@@ -79,11 +80,10 @@ ComputeFingerprints::ComputeFingerprints(LAMMPS *lmp, int narg, char **arg) :
 
   int ntypes = atom->ntypes;
   int ntypes_combinations = ntypes*(ntypes+1)/2;
-  int n_derivatives = n_etaG2*ntypes*g2_flag + n_lambda*n_zeta*n_etaG4*ntypes_combinations*g4_flag;
-  int n_fingerprints = n_derivatives + ntypes;
+  n_fingerprints = n_etaG2*ntypes*g2_flag + n_lambda*n_zeta*n_etaG4*ntypes_combinations*g4_flag + ntypes;
   size_peratom_cols = n_fingerprints;
 
-  nmax_atom = 0;
+  nmax_atom = 0; 
   peratom_flag = 1;
 
 }
@@ -95,7 +95,7 @@ ComputeFingerprints::~ComputeFingerprints()
 {
 
   //  memory->destroy(array_atom);
-  memory->destroy(fingerpts);
+  memory->destroy(fingerprints);
   memory->destroy(eta_G2);
   memory->destroy(eta_G4);
   memory->destroy(zeta);
@@ -149,6 +149,7 @@ void ComputeFingerprints::compute_peratom()
   int * const type = atom->type;
   int const ntypes = atom->ntypes;
   double** const x = atom->x;
+  int * const tag = atom->tag;
   const int* const mask = atom->mask;
   double pi = 3.14159265358979323846;
 
@@ -157,12 +158,13 @@ void ComputeFingerprints::compute_peratom()
   for (int i=0;i<size_peratom_cols;i++)
     fingerprints_atom[i] = 0;
 
-  if (atom->natoms > nmax_atom) {
-    memory->destroy(fingerpts);
-    nmax_atom = atom->nlocal;
-    memory->create(fingerpts,nmax_atom,size_peratom_cols,
-                     "fingerprints:fingerpts");
-    array_atom = fingerpts;
+  // when the atoms number in processor increases, re-allocate fingerprints 
+  if (inum > nmax_atom) {
+    memory->destroy(fingerprints);
+    nmax_atom = inum;
+    memory->create(fingerprints,nmax_atom,size_peratom_cols,
+                     "ComputeFingerprints:fingerprints");
+    array_atom = fingerprints;
   }
 
   int position[ntypes][ntypes];
@@ -181,8 +183,10 @@ void ComputeFingerprints::compute_peratom()
   double function, function1, function2;
 
   // The fingerprints are calculated for each atom i in the initial data
+
   for (int ii = 0; ii < inum; ii++) {
     const int i = ilist[ii];
+    
     if (mask[i] & groupbit) {
 
       // First neighborlist for atom i
@@ -193,7 +197,6 @@ void ComputeFingerprints::compute_peratom()
       for (int jj = 0; jj < jnum; jj++) {            // Loop for the first neighbor j
         j = jlist[jj];
         j &= NEIGHMASK;
-
         // Element type of atom j. Rij calculation.
         Rx_ij = x[j][0] - x[i][0];
         Ry_ij = x[j][1] - x[i][1];
@@ -245,8 +248,6 @@ void ComputeFingerprints::compute_peratom()
 		  
 		  for (int l = 0; l < n_zeta; l++)  {
 		    for (int q = 0; q < n_etaG4; q++) {
-		      //double power=pow(aux,zeta[l]);
-		      //printf("======> aux =%f, pow = %f\n",aux,power);
 		      G4 = pow(2,1-zeta[l])*pow(aux,zeta[l])*exp(-eta_G4[q]*(rsq+rsq1+rsq2))*function*function1*function2;
 		      if (kk > jj)   fingerprints_atom[ntypes+n_etaG2*ntypes+h+n_lambda*(l+n_zeta*(q+n_etaG4*type_comb))] += G4;
 		    }
@@ -258,16 +259,14 @@ void ComputeFingerprints::compute_peratom()
           }
         }
       }
-      // Writing the fingerprnts vector in the array_atom matrix
+      
+      // Writing the fingerprnts vector in the fingerprints matrix
       for(int n = 0; n < size_peratom_cols; n++) {
-        fingerpts[i][n] = fingerprints_atom[n];
+        fingerprints[i][n] = fingerprints_atom[n];
         fingerprints_atom[n] = 0.0;
       }
     } 
   }
-  int me;
-  MPI_Comm_rank(world,&me);
-  printf("===================> fingerpts[0][2]=%f and array_atom[0][2]=%f on proc %d\n",fingerpts[0][2],array_atom[0][2],me);
 }
 
 /* ----------------------------------------------------------------------

@@ -53,6 +53,8 @@ using namespace LAMMPS_NS;
 #define MAXARGS 1000
 #define MAXWORDS 100
 
+
+
 /*---------------------------------------------------------------------------------------------
 read the information of descriptor parameters and nerual network
 ---------------------------------------------------------------------------------------------*/
@@ -73,7 +75,7 @@ void PairTFDNN::read_file(char *filename)
   g2_flag = 0;
   g4_flag = 0;
 
-  MPI_Comm_rank(world,&me);
+   MPI_Comm_rank(world,&me);
   
   FILE *fp = NULL;
   
@@ -251,15 +253,20 @@ void PairTFDNN::read_file(char *filename)
 
 /* ---------------------------------------------------------------------- */
 
-PairTFDNN::PairTFDNN(LAMMPS *lmp) : Pair(lmp), fingerprints(NULL), dgdr(NULL), center_atom_id(NULL), neighbor_atom_coord(NULL), atom_elements(NULL),neighbor_atom_id(NULL)
+PairTFDNN::PairTFDNN(LAMMPS *lmp) : Pair(lmp), fingerprints(NULL)
 {
   single_enable = 0;
   restartinfo = 0;
   // one_coeff = 1;
   no_virial_fdotr_compute = 1;
   manybody_flag = 1;
-  num_der_pairs = 0; // number of derivative pairs
-  fp_nrows = 0; // number of rows of fingerprints array  
+
+
+  // create a new compute fingerprints style
+  // id = fix-ID + temp
+  // compute group = all since pressure is always global (group all)
+  //   and thus its KE/temperature contribution should use group all
+  
 }
 
 /* ---------------------------------------------------------------------- */
@@ -303,13 +310,12 @@ PairTFDNN ::~PairTFDNN()
 
   
   
-  memory->sfree(atom_elements);
-  memory->sfree(fingerprints);
-
-  memory->sfree(dgdr);
-  memory->sfree(center_atom_id);
-  memory->sfree(neighbor_atom_id);
-  memory->sfree(neighbor_atom_coord);
+  memory->destroy(atom_elements);
+  memory->destroy(fingerprints);
+  memory->destroy(Input);
+  memory->destroy(Output);
+  memory->destroy(InputValues);
+  memory->destroy(OutputValues);
   
   TF_DeleteGraph(Graph);
   TF_DeleteSession(Session, Status);
@@ -419,12 +425,14 @@ void PairTFDNN::init_style()
   if (force->newton_pair != 1)
     error->all(FLERR,"Pair style tfdnn requires newton pair on");
 
+
   // Initialise neighbor list, including neighbors of ghosts
   int irequest_full = neighbor->request(this);
   neighbor->requests[irequest_full]->id = 1;
   neighbor->requests[irequest_full]->half = 0;
   neighbor->requests[irequest_full]->full = 1;
   neighbor->requests[irequest_full]->ghost = 1;
+
   
   // create tensorflow model
   create_tensorflow_model();
@@ -512,21 +520,22 @@ void PairTFDNN::compute_fingerprints()
   double pi = 3.14159265358979323846;
   double cutoffsq = cut_global*cut_global;
   int ntypes_combinations = ntypes*(ntypes+1)/2;
-  n_fpt = n_etaG2*ntypes*g2_flag + n_lambda*n_zeta*n_etaG4*ntypes_combinations*g4_flag + ntypes;
+  int n_fingerprints = n_etaG2*ntypes*g2_flag + n_lambda*n_zeta*n_etaG4*ntypes_combinations*g4_flag + ntypes;
+  size_peratom_cols = n_fingerprints;
+  size_rows = atom->nlocal;
   
   // Initialize fingerprnts vector per atom
-  double fingerprints_atom[n_fpt];
-  for (int i=0;i<n_fpt;i++)
+  double fingerprints_atom[size_peratom_cols];
+  for (int i=0;i<size_peratom_cols;i++)
     fingerprints_atom[i] = 0;
 
-  // allocate fingerprints array, size of the array may increase at different timestep
-  if (inum > fp_nrows) {
-    memory->sfree(fingerprints);
-    memory->sfree(atom_elements);
-    printf("\n================> reallocate memory ==================\n");
-    fp_nrows = inum;
-    fingerprints = (float_type *) memory->smalloc(fp_nrows*n_fpt*sizeof(float_type),"PairTFDNN:fingerprints");
-    atom_elements = (int *) memory->smalloc(fp_nrows * sizeof(int),"PairTFDNN:atom_elements");
+  // allocate fingerprints array, size of the array may change at different timestep
+  if (size_rows > 0) {
+    //memory->destroy(fingerprints);
+    //    memory->destroy(atom_elements);
+    fingerprints = (float *)malloc(size_rows * size_peratom_cols * sizeof(float));
+    atom_elements = (int *)malloc(size_rows * sizeof(int));
+    // memory->create(fingerpts,size_rows,size_peratom_cols,"tfdnn:fingerpts");
   }
 
   //
@@ -549,8 +558,9 @@ void PairTFDNN::compute_fingerprints()
   for (int ii = 0; ii < inum; ii++) {
     const int i = ilist[ii];
     if (mask[i]) {
-      
+
       atom_elements[i] = map[type[i]];
+
       
       // First neighborlist for atom i
       const int* const jlist = firstneigh[i];
@@ -560,7 +570,7 @@ void PairTFDNN::compute_fingerprints()
       for (int jj = 0; jj < jnum; jj++) {            // Loop for the first neighbor j
         j = jlist[jj];
         j &= NEIGHMASK;
-	
+
         // Element type of atom j. Rij calculation.
         Rx_ij = x[j][0] - x[i][0];
         Ry_ij = x[j][1] - x[i][1];
@@ -573,17 +583,18 @@ void PairTFDNN::compute_fingerprints()
           function = 0.5*(cos(sqrt(rsq/cutoffsq)*pi)+1);
 
           // G1 fingerprints calculation: sum Fc(Rij)
+          // fingerprints_atom[(jtype-1)*(1+n_etaG2)] += function;
 	  fingerprints_atom[jtype-1] += function;
 	  
           if (g2_flag == 1) {
             // The number of G2 fingerprints depend on the number of given eta_G2 parameters
             for (int m = 0; m < n_etaG2; m++)  {
-	      fingerprints_atom[ntypes+m*ntypes+jtype-1] += exp(-eta_G2[m]*rsq)*function;     // G2 fingerprints calculation
+              //fingerprints_atom[1+m+(jtype-1)*(1+n_etaG2)] += exp(-eta_G2[m]*rsq)*function; // G2 fingerprints calculation
+	      fingerprints_atom[ntypes+m*ntypes+jtype-1] += exp(-eta_G2[m]*rsq)*function;                                   // G2 fingerprints calculation
             }
           }
 
-
-	  // G4 calculation
+          /* ------------------------------------------------------------------------------------------------------------------------------- */
           if (g4_flag == 1) {
             for (int kk = 0; kk < jnum; kk++) {            // Loop for the second neighbor k
               k = jlist[kk];
@@ -623,8 +634,8 @@ void PairTFDNN::compute_fingerprints()
         }
       }
       // Writing The fingerprnts_atom vector in the fingerprints matrix
-      for(int n = 0; n < n_fpt; n++) {
-	fingerprints[i*n_fpt+n]=fingerprints_atom[n];
+      for(int n = 0; n < size_peratom_cols; n++) {
+	fingerprints[i*size_peratom_cols+n]=fingerprints_atom[n];
         fingerprints_atom[n] = 0.0;
       }
     } 
@@ -635,9 +646,7 @@ void PairTFDNN::compute_fingerprints()
 //-------------------------------------------------------------
 void PairTFDNN::compute_derivatives()
 {
-  const int inum = list->inum;  // # of I atoms neighbors are stored for, which is usually equals to atom->local, but When using pair_style hybrid,
-                                // neighbor lists can be for subsets of all the atoms owned by a proc.
-  
+  const int inum = list->inum;
   const int* const numneigh = list->numneigh;
 
   // Get initial atoms data and neighborlists
@@ -649,36 +658,38 @@ void PairTFDNN::compute_derivatives()
   const int* const mask = atom->mask;
   int * const tag = atom->tag;
   double pi = 3.14159265358979323846;
-
+  int count = 0;
   double cutoffsq = cut_global*cut_global;
 
   int ntypes_combinations = ntypes*(ntypes+1)/2;
+  int n_derivatives = n_etaG2*ntypes*g2_flag + n_lambda*n_zeta*n_etaG4*ntypes_combinations*g4_flag + ntypes;
+  size_local_cols = n_derivatives;
 
-  n_der = n_etaG2*ntypes*g2_flag + n_lambda*n_zeta*n_etaG4*ntypes_combinations*g4_flag + ntypes;
-  
-  int total_neigh_pair = accumulate(numneigh, numneigh+inum, 0); // total number of neighbhor pairs 
-  int count = 0; //count the neighbor pair
+  int total_list = accumulate(numneigh, numneigh+inum, 0);
+  int num_blocks = inum + total_list;
+  size_local_rows = 3 * num_blocks;
+
  
-  // allocate fingerprints derivatives related arrays, reallocate when num_der_pairs increases
-  if (inum + total_neigh_pair > num_der_pairs) {
-    memory->sfree(dgdr);
-    memory->sfree(center_atom_id);
-    memory->sfree(neighbor_atom_coord);
-    memory->sfree(neighbor_atom_id);
-    
-    num_der_pairs = inum + total_neigh_pair;  // total number of derivative pairs, including derivatives to neighbors and to selfs 
-
-    dgdr = (float_type *)memory->smalloc(3 * num_der_pairs * n_der * sizeof(float_type),"PairTFDNN:dgdr");
-    center_atom_id = (int *)memory->smalloc(num_der_pairs * sizeof(int),"PairTFDNN:center_atom_id");
-    neighbor_atom_coord = (float_type *)memory->smalloc(num_der_pairs * 3 * sizeof(float_type),"PairTFDNN:neighbor_atom_coord");
-    neighbor_atom_id = (int *)memory->smalloc(num_der_pairs * sizeof(int),"PairTFDNN:neighbor_atom_id");
-  }
+  // allocate fingerprints derivative array, size of the array may change at different timestep
+  if (size_local_rows > 0) {
+    memory->destroy(fingerprints_der);
+    fingerprints_der = (float *)malloc(size_local_rows * size_local_cols * sizeof(float));
+    center_atom_id = (int *)malloc(num_blocks * sizeof(int));
+    center_atom_coord = (int *)malloc(size_local_rows * sizeof(float));
+    neighbor_atom_id = (int *)malloc(num_blocks * sizeof(int));
+  }  
   
   
   // define derivatives (w.r.t other atoms) and derivatives_i (w.r.t itself) array
-  double derivatives[3][n_der];
-  double derivatives_i[3][n_der];
+  double derivatives[3][size_local_cols];
+  double derivatives_i[3][size_local_cols];
 
+  for(int n = 0; n < size_local_cols; n++) {
+    derivatives_i[0][n] = 0.0;
+    derivatives_i[1][n] = 0.0;
+    derivatives_i[2][n] = 0.0;
+    //    derivatives_i[3][n] = 0.0;
+  }
 
   int position[ntypes][ntypes];
   int pos = 0;
@@ -695,8 +706,7 @@ void PairTFDNN::compute_derivatives()
   double Rx_jk, Ry_jk, Rz_jk, rsq2, cos_theta, aux, G4;
   double function, function1, function2, dfc, dfc1, dfc2;
   double ij_factor, ik_factor, jk_factor;
-  
-  
+
   // The derivatives are calculated for each atom i in the initial data
   for (int ii = 0; ii < inum; ii++) {
     const int i = ilist[ii];
@@ -706,10 +716,26 @@ void PairTFDNN::compute_derivatives()
       const int* const jlist = firstneigh[i];
       jnum = numneigh[i];
 
-      for(int n = 0; n < n_der; n++) {
-	derivatives_i[0][n] = 0.0;
+      derivatives_i[0][0] = tag[i];
+      derivatives_i[0][1] = type[i];
+      derivatives_i[0][2] = tag[i];
+      derivatives_i[0][3] = type[i];
+      derivatives_i[0][4] = tag[i];
+      derivatives_i[1][0] = x[i][0];
+      derivatives_i[2][0] = x[i][1];
+      derivatives_i[3][0] = x[i][2];
+
+      for(int n = 1; n < size_local_cols; n++) {
 	derivatives_i[1][n] = 0.0;
 	derivatives_i[2][n] = 0.0;
+	derivatives_i[3][n] = 0.0;
+      }
+
+      for(int n = 0; n < size_local_cols; n++) {
+	derivatives[0][n] = 0.0;
+	derivatives[1][n] = 0.0;
+	derivatives[2][n] = 0.0;
+	derivatives[3][n] = 0.0;
       }
 
       // Loop for the first neighbor j
@@ -729,30 +755,40 @@ void PairTFDNN::compute_derivatives()
 	  function = 0.5*(cos(sqrt(rsq/cutoffsq)*pi)+1);
 	  dfc = -pi*0.5*sin(pi*sqrt(rsq/cutoffsq))/(sqrt(cutoffsq));
 
-	  for(int n = 1; n < n_der; n++) {
-              derivatives[0][n] = 0.0;
-              derivatives[1][n] = 0.0;
-              derivatives[2][n] = 0.0;
-            }
+	  derivatives[0][0] = tag[i];
+	  derivatives[0][1] = type[i];
+	  if (j>inum) {derivatives[0][2] = j;}
+	  if (j<=inum)  {derivatives[0][2] = tag[j];}
+	  derivatives[0][3] = jtype;
+	  derivatives[0][4] = tag[j];
+	  derivatives[1][0] = x[j][0];
+	  derivatives[2][0] = x[j][1];
+	  derivatives[3][0] = x[j][2];
 	  
-	  derivatives[0][jtype-1] = dfc*Rx_ij;
-	  derivatives[1][jtype-1] = dfc*Ry_ij;
-	  derivatives[2][jtype-1] = dfc*Rz_ij;
+	  for(int n = 1; n < size_local_cols; n++) {
+	    derivatives[1][n] = 0.0;
+	    derivatives[2][n] = 0.0;
+	    derivatives[3][n] = 0.0;
+	  }
+
+	  derivatives[1][jtype] = dfc*Rx_ij;
+	  derivatives[2][jtype] = dfc*Ry_ij;
+	  derivatives[3][jtype] = dfc*Rz_ij;
 	  
-	  derivatives_i[0][jtype-1] += -dfc*Rx_ij;
-	  derivatives_i[1][jtype-1] += -dfc*Ry_ij;
-	  derivatives_i[2][jtype-1] += -dfc*Rz_ij;
+	  derivatives_i[1][jtype] += -dfc*Rx_ij;
+	  derivatives_i[2][jtype] += -dfc*Ry_ij;
+	  derivatives_i[3][jtype] += -dfc*Rz_ij;
 	  
 	  if (g2_flag == 1) {
 	    // The number of G2 derivatives depend on the number of given eta_G2 parameters
 	    for (int m = 0; m < n_etaG2; m++)  {
-	      derivatives[0][ntypes+m*ntypes+jtype-1] = exp(-eta_G2[m]*rsq)*(dfc/sqrt(rsq)-2*eta_G2[m]*function)*Rx_ij; // G2 derivatives in the x direction
-	      derivatives[1][ntypes+m*ntypes+jtype-1] = exp(-eta_G2[m]*rsq)*(dfc/sqrt(rsq)-2*eta_G2[m]*function)*Ry_ij; // G2 derivatives in the y direction
-	      derivatives[2][ntypes+m*ntypes+jtype-1] = exp(-eta_G2[m]*rsq)*(dfc/sqrt(rsq)-2*eta_G2[m]*function)*Rz_ij; // G2 derivatives in the z direction
+	      derivatives[1][ntypes+m*ntypes+jtype] = exp(-eta_G2[m]*rsq)*(dfc/sqrt(rsq)-2*eta_G2[m]*function)*Rx_ij; // G2 derivatives in the x direction
+	      derivatives[2][ntypes+m*ntypes+jtype] = exp(-eta_G2[m]*rsq)*(dfc/sqrt(rsq)-2*eta_G2[m]*function)*Ry_ij; // G2 derivatives in the y direction
+	      derivatives[3][ntypes+m*ntypes+jtype] = exp(-eta_G2[m]*rsq)*(dfc/sqrt(rsq)-2*eta_G2[m]*function)*Rz_ij; // G2 derivatives in the z direction
 
-	      derivatives_i[0][ntypes+m*ntypes+jtype-1] += -exp(-eta_G2[m]*rsq)*(dfc/sqrt(rsq)-2*eta_G2[m]*function)*Rx_ij; // G2 derivatives (w.r.t itself) in the x direction
-	      derivatives_i[1][ntypes+m*ntypes+jtype-1] += -exp(-eta_G2[m]*rsq)*(dfc/sqrt(rsq)-2*eta_G2[m]*function)*Ry_ij; // G2 derivatives (w.r.t itself) in the y direction
-	      derivatives_i[2][ntypes+m*ntypes+jtype-1] += -exp(-eta_G2[m]*rsq)*(dfc/sqrt(rsq)-2*eta_G2[m]*function)*Rz_ij; // G2 derivatives (w.r.t itself) in the z direction 
+	      derivatives_i[1][ntypes+m*ntypes+jtype] += -exp(-eta_G2[m]*rsq)*(dfc/sqrt(rsq)-2*eta_G2[m]*function)*Rx_ij; // G2 derivatives (w.r.t itself) in the x direction
+	      derivatives_i[2][ntypes+m*ntypes+jtype] += -exp(-eta_G2[m]*rsq)*(dfc/sqrt(rsq)-2*eta_G2[m]*function)*Ry_ij; // G2 derivatives (w.r.t itself) in the y direction
+	      derivatives_i[3][ntypes+m*ntypes+jtype] += -exp(-eta_G2[m]*rsq)*(dfc/sqrt(rsq)-2*eta_G2[m]*function)*Rz_ij; // G2 derivatives (w.r.t itself) in the z direction 
 	    }
 	  }
 
@@ -799,14 +835,14 @@ void PairTFDNN::compute_derivatives()
 			// G4 derivatives calculation
 			if ( kk != jj ) {
 			  // G4 derivatives with respect to x, y, z directions
-			  derivatives[0][ntypes+n_etaG2*ntypes+h+n_lambda*(l+n_zeta*(q+n_etaG4*type_comb))]  += G4*(ij_factor*Rx_ij-jk_factor*Rx_jk);
-			  derivatives[1][ntypes+n_etaG2*ntypes+h+n_lambda*(l+n_zeta*(q+n_etaG4*type_comb))]  += G4*(ij_factor*Ry_ij-jk_factor*Ry_jk);
-			  derivatives[2][ntypes+n_etaG2*ntypes+h+n_lambda*(l+n_zeta*(q+n_etaG4*type_comb))]  += G4*(ij_factor*Rz_ij-jk_factor*Rz_jk);
+			  derivatives[1][ntypes+n_etaG2*ntypes+h+n_lambda*(l+n_zeta*(q+n_etaG4*type_comb))+1]  += G4*(ij_factor*Rx_ij-jk_factor*Rx_jk);
+			  derivatives[2][ntypes+n_etaG2*ntypes+h+n_lambda*(l+n_zeta*(q+n_etaG4*type_comb))+1]  += G4*(ij_factor*Ry_ij-jk_factor*Ry_jk);
+			  derivatives[3][ntypes+n_etaG2*ntypes+h+n_lambda*(l+n_zeta*(q+n_etaG4*type_comb))+1]  += G4*(ij_factor*Rz_ij-jk_factor*Rz_jk);
 			}
 			if ( kk > jj ) {
-			  derivatives_i[0][ntypes+n_etaG2*ntypes+h+n_lambda*(l+n_zeta*(q+n_etaG4*type_comb))]  += -G4*(ij_factor*Rx_ij+ik_factor*Rx_ik);
-			  derivatives_i[1][ntypes+n_etaG2*ntypes+h+n_lambda*(l+n_zeta*(q+n_etaG4*type_comb))]  += -G4*(ij_factor*Ry_ij+ik_factor*Ry_ik);
-			  derivatives_i[2][ntypes+n_etaG2*ntypes+h+n_lambda*(l+n_zeta*(q+n_etaG4*type_comb))]  += -G4*(ij_factor*Rz_ij+ik_factor*Rz_ik);
+			  derivatives_i[1][ntypes+n_etaG2*ntypes+h+n_lambda*(l+n_zeta*(q+n_etaG4*type_comb))+1]  += -G4*(ij_factor*Rx_ij+ik_factor*Rx_ik);
+			  derivatives_i[2][ntypes+n_etaG2*ntypes+h+n_lambda*(l+n_zeta*(q+n_etaG4*type_comb))+1]  += -G4*(ij_factor*Ry_ij+ik_factor*Ry_ik);
+			  derivatives_i[3][ntypes+n_etaG2*ntypes+h+n_lambda*(l+n_zeta*(q+n_etaG4*type_comb))+1]  += -G4*(ij_factor*Rz_ij+ik_factor*Rz_ik);
 			}
 		      }
 		    }
@@ -816,160 +852,90 @@ void PairTFDNN::compute_derivatives()
 	    } 
 	  } // end loop of k
 
-	  // Writing the derivatives array, for derivative of atom i w.r.t. atom j
-	  for (int m = 0; m < 3; m++){
-	    neighbor_atom_coord[count*3+m] = x[j][m];
-	    for(int n = 0; n < n_der; n++)
-	      dgdr[(n_der*count+n)*3+m] = derivatives[m][n];
-	  }	  
-	  center_atom_id[count] = i;
-	  neighbor_atom_id[count] = j;
-	  count++;	  
+	  // Writing the derivatives array in the array_atom matrix, for derivative of atom i w.r.t. atom j
+	  for (int m = 0; m < 3; m++) 
+	    for(int n = 0; n < size_local_cols; n++)
+	      fingerprints_der[(4*count+m)*size_local_cols+n] = derivatives[m][n];
+	  count++;
 	} 
-      } // Loop of j
+      } // loop of j
 
-      // Writing the derivatives_i array in the array_atom matrix, for derivative of atom i w.r.t. atom i itself
-      for (int m = 0; m < 3; m++){	
-	neighbor_atom_coord[count*3+m] = x[i][m];
-	for(int n = 0; n < n_der; n++)
-	  dgdr[(n_der*count+n)*3+m] = derivatives_i[m][n];
-      }      
-      center_atom_id[count] = i;
-      neighbor_atom_id[count] = i;	  
+      // Writing the derivatives_i array in the array_atom matrix, for derivative of atom i w.r.t. atom i
+      for (int m = 0; m < 3; m++) 
+	    for(int n = 0; n < size_local_cols; n++)
+	      fingerprints_der[(4*count+m)*size_local_cols+n] = derivatives[m][n];
       count++;
     } 
   }
+
+  
 }
+
+
 
 
 /* ---------------------------------------------------------------------- */
 
 void PairTFDNN::compute(int eflag, int vflag)
 {
-  MPI_Comm_rank(world,&me);
-
-  ev_init(eflag,vflag);
-  
   compute_fingerprints();
+
   compute_derivatives();
   
   // atom element type input dimensions
   int ndims_elements = 2;
-  int64_t dims_elements[2] = {1,fp_nrows};
+  int64_t dims_elements[2] = {1,size_rows};
   int ndata_elements = sizeof(int)*dims_elements[1];
 
   // fingerprints input dimensions
   int ndims_fp = 3;
-  int64_t dims_fp[3] = {1, fp_nrows, n_fpt};
-  int ndata_fp = sizeof(float_type)*dims_fp[1]*dims_fp[2]; 
+  int64_t dims_fp[3] = {1, size_rows, size_peratom_cols};
+  int ndata_fp = sizeof(float)*dims_fp[1]*dims_fp[2]; 
 
-  // center_atom_id input dimensions
-  int ndims_center_id = 2;
-  int64_t dims_center_id[2] = {1, num_der_pairs};
-  int ndata_center_id = sizeof(int)*dims_center_id[1];
-
-  // neighbor_atom_id input dimensions
-  int ndims_neighbor_id = 2;
-  int64_t dims_neighbor_id[2] = {1, num_der_pairs};
-  int ndata_neighbor_id = sizeof(int)*dims_neighbor_id[1];
-
-  // dGdr input dimensions
-  int ndims_dgdr = 4;
-  int64_t dims_dgdr[4] = {1,num_der_pairs,n_der,3};
-  int ndata_dgdr = sizeof(float_type)*dims_dgdr[1]*dims_dgdr[2]*dims_dgdr[3];
-
-  // neighbor_atom_coord input dimensions
-  int ndims_neighbor_coord = 4;
-  int64_t dims_neighbor_coord[4] = {1,num_der_pairs,3,1};
-  int ndata_neighbor_coord = sizeof(float_type)*dims_neighbor_coord[1]*dims_neighbor_coord[2];
-
-  
   for (int i=0;i<tf_input_number;i++){
     if (!strncmp(tf_input_tag[i],"fingerprints",12))
-      InputValues[i] = TF_NewTensor(tf_float_type, dims_fp, ndims_fp, fingerprints, ndata_fp, &NoOpDeallocator, 0);
+      InputValues[i] = TF_NewTensor(TF_FLOAT, dims_fp, ndims_fp, fingerprints, ndata_fp, &NoOpDeallocator, 0);
     else if (!strncmp(tf_input_tag[i],"atom_type",9))
       InputValues[i] = TF_NewTensor(TF_INT32, dims_elements, ndims_elements, atom_elements, ndata_elements, &NoOpDeallocator, 0);
-    else if (!strncmp(tf_input_tag[i],"center_atom_id",14))
-      InputValues[i] = TF_NewTensor(TF_INT32, dims_center_id, ndims_center_id, center_atom_id, ndata_center_id, &NoOpDeallocator, 0);
-    else if (!strncmp(tf_input_tag[i],"neighbor_atom_id",16))
-       InputValues[i] = TF_NewTensor(TF_INT32, dims_neighbor_id, ndims_neighbor_id, neighbor_atom_id, ndata_neighbor_id, &NoOpDeallocator, 0);
-    else if (!strncmp(tf_input_tag[i],"dgdr",4))
-      InputValues[i] = TF_NewTensor(tf_float_type, dims_dgdr, ndims_dgdr, dgdr, ndata_dgdr, &NoOpDeallocator, 0);
-    else if (!strncmp(tf_input_tag[i],"neighbor_atom_coord",19))
-      InputValues[i] = TF_NewTensor(tf_float_type, dims_neighbor_coord, ndims_neighbor_coord, neighbor_atom_coord, ndata_neighbor_coord, &NoOpDeallocator, 0);
   }
     
   // Run the tensorflow Session for prediction
   TF_SessionRun(Session, NULL, Input, InputValues, tf_input_number, Output, OutputValues, tf_output_number, NULL, 0,NULL , Status);
 
-  if(TF_GetCode(Status) != TF_OK)
-    error->all(FLERR,"Failed TF_SessionRun.");
-    
+  if(TF_GetCode(Status) != TF_OK){
+    error->all(FLERR,"Failed Session Run.");
+  }
+  
+  void* buff = TF_TensorData(OutputValues[0]);
+  float* model_output = (float*)buff;
+  float eng_local;
+  eng_local = model_output[0];
+  float eng_total = 0;
+  
+  eng_vdwl = model_output[0];
 
-  void* buff;
-  float_type* model_output;
-  double **f = atom->f; 
-  const int* const ilist = list->ilist;
 
-  for (int i=0;i<tf_output_number;i++){
-    if (!strncmp(tf_output_tag[i],"atom_pe",2)){
-      buff = TF_TensorData(OutputValues[i]);
-      model_output = (float_type*)buff;
+  /*
+  if(eflag_global){ 
+    //eng_vdwl = eng_total;
+  }
 
-      if (eflag_either){
-	if (eflag_atom)
-	  for (int j=0;j<fp_nrows;j++)
-	    eatom[ilist[j]] += model_output[j];
-      
-	if (eflag_global){
-	  for (int j=0;j<fp_nrows;j++)
-	    eng_vdwl += model_output[j];
-	}
-      }
+  
+  if(eflag_atom) {
+    for (ii = 0; ii < ntotal; ii++) {
+      eatom[ii] = 0;
     }
-    
-    if (!strncmp(tf_output_tag[i],"force",5)){
-      buff = TF_TensorData(OutputValues[i]);
-      model_output = (float_type*)buff;
-      int neighid;
-      for (int j=0;j<num_der_pairs;j++){
-	neighid = neighbor_atom_id[j];
-	for (int k=0;k<3;k++)
-	  f[neighid][k] += model_output[j*3+k];
-      }
-    }
+  }
+  */
 
-    if (!strncmp(tf_output_tag[i],"stress",6)){
-      buff = TF_TensorData(OutputValues[i]);
-      model_output = (float_type*)buff;
-      
-      if (vflag_either){
-	if (vflag_atom){
-	  int centerid;
-	  for (int j=0;j<num_der_pairs;j++){
-	    centerid = center_atom_id[j];
-	    vatom[centerid][0] += model_output[j*9];
-	    vatom[centerid][1] += model_output[j*9+4];
-	    vatom[centerid][2] += model_output[j*9+8];
-	    vatom[centerid][3] += model_output[j*9+1];
-	    vatom[centerid][4] += model_output[j*9+2];
-	    vatom[centerid][5] += model_output[j*9+5];
-	  }
-	}
-	
-	if (vflag_global){
-	  for (int j=0;j<num_der_pairs;j++){
-	    virial[0] += model_output[j*9];
-	    virial[1] += model_output[j*9+4];
-	    virial[2] += model_output[j*9+8];
-	    virial[3] += model_output[j*9+1];
-	    virial[4] += model_output[j*9+2];
-	    virial[5] += model_output[j*9+5];
-	  }
-	}
-      } 
-    }  
-  } 
+  if (vflag_global) {
+      virial[0] = 0;
+      virial[1] = 0;
+      virial[2] = 0;
+      virial[3] = 0;
+      virial[4] = 0;
+      virial[5] = 0;
+  }  
 }
 /*---------------------------------------------------------------*/
 int PairTFDNN::getwords(char *line, char *words[], int maxwords)

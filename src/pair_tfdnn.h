@@ -20,6 +20,10 @@ PairStyle(tfdnn,PairTFDNN)
 #ifndef LMP_PAIR_TFDNN_H
 #define LMP_PAIR_TFDNN_H
 
+
+#define float_type double // or float
+#define tf_float_type TF_DOUBLE // or TF_FLOAT
+
 #include "pair.h"
 #include "tensorflow/c/c_api.h"
 
@@ -53,34 +57,57 @@ private:
   int n_etaG4;                // number of eta parameters for ACSF G4 descriptor
   int n_zeta;                 // number of zeta parameters for ACSF G4 descriptor
   int n_lambda;               // number of lambda parameters for ACSF G4 descriptor
+  int maxnum_blocks = 200;
+
+  // double eta_G2[4] = {0.01,0.1,0.3,1};             // eta parameters for ACSF G2 descriptor 
+  // double zeta[3] = {1.0,2.0,4.0};               // zeta parameters for ACSF G4 descriptor 
+  // double eta_G4[1] = {0.01};             // eta parameters for ACSF G4 descriptor 
+  // double lambda[2] = {1.0,-1.0};             // lambda parameters for ACSF G4 descriptor 
+  // int n_parameter = 4;            // number of parameters for descriptor, = 4 for ACSF
+  // int n_etaG2 = 4;                // number of eta parameters for ACSF G2 descriptor
+  // int n_etaG4 = 1;                // number of eta parameters for ACSF G4 descriptor
+  // int n_zeta = 3;                 // number of zeta parameters for ACSF G4 descriptor
+  // int n_lambda = 2;               // number of lambda parameters for ACSF G4 descriptor
+  
   int g2_flag;                // = 1, if ACSF G2 descriptor is set
   int g4_flag;                // = 1, if ACSF G4 descriptor is set
 
-  float *fingerprints;          // fingerprints pointer, 1D storage for 2D array
-  int size_peratom_cols;      // cols of fingerprints array, = numnber of fingerprints
-  int size_rows;              // rows of fingerprints array, = number of local atom
+  int tf_nelement;               // number of elements defined in potential 
+  char **tf_element;             // names of elements defined in potential  
+  int *map;                      // mapping from atom types to elements 
 
-  float *fingerprints_der;    // fignerprints derivatives, 1D storage for 2D array
+  // int tf_nelement = 1;
+  // char tf_element[1] = {'C'};
+  // int map[2] = {1,1};
 
-  int size_local_rows, size_local_cols; // size of fingerprints derivatives
+  float_type *fingerprints;          // fingerprints pointer, 1D storage for 2D array
+  int fp_nrows;              // rows of fingerprints array, = number of local atoms described by PairTFDNN
 
-  int64_t *dims;               // dims vector define the size of the input tensors, e.g. {1,2,3} means a 1x2x3 tensor
+  int n_fpt; // number of fingerprints
+  int n_der; // number of fingerprints derivatives
+  int num_der_pairs; // total number of derivative pairs, including derivatives to neighbors and to selfs 
+  
+  int* atom_elements;
+  
+  float_type *dgdr;    // fignerprints derivatives, 1D storage for 2D array
+  float_type *neighbor_atom_coord;
+  int *center_atom_id, *neighbor_atom_id;
+
+
+
+ 
   // float *data; // define vector for fingerprints
 
   // class NeighList *list;
 
 protected:
   double cut_global;
-  int tf_input_number, tf_output_number;
-  int tf_nelement;               // number of elements defined in potential 
-  char **tf_element;             // names of elements defined in potential  
-  int *map;                      // mapping from atom types to elements 
+  int tf_input_number;
+  int tf_output_number;
   int me;
   
-  int ndims; // dimension of input tensor
   char *tf_model_dir;
   char **tf_input_tensor,**tf_output_tensor,**tf_output_tag,**tf_input_tag;
-  char *tf_model_tags = "serve";
   TF_Graph *Graph;
   TF_Output *Input,*Output;
   TF_Status *Status;
@@ -90,9 +117,6 @@ protected:
   TF_Session *Session;
   TF_Tensor **InputValues, **OutputValues;
   
-  class Compute *comp_fp;
-  char *id_comp_fp;
-  int fpflag;
   virtual void allocate();
 };
   

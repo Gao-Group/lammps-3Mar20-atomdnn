@@ -1,0 +1,432 @@
+atom.cpp:1496:    if (compute->create_attribute)
+atom.cpp:1498:        compute->set_arrays(i);
+comm_brick.cpp:1089:  int nsize = compute->comm_forward;
+comm_brick.cpp:1095:    n = compute->pack_forward_comm(sendnum[iswap],sendlist[iswap],
+comm_brick.cpp:1113:    compute->unpack_forward_comm(recvnum[iswap],firstrecv[iswap],buf);
+comm_brick.cpp:1128:  int nsize = compute->comm_reverse;
+comm_brick.cpp:1134:    n = compute->pack_reverse_comm(recvnum[iswap],firstrecv[iswap],buf_send);
+comm_brick.cpp:1151:    compute->unpack_reverse_comm(sendnum[iswap],sendlist[iswap],buf);
+comm_tiled.cpp:1177:  int nsize = compute->comm_forward;
+comm_tiled.cpp:1191:        n = compute->pack_forward_comm(sendnum[iswap][i],sendlist[iswap][i],
+comm_tiled.cpp:1198:      compute->pack_forward_comm(sendnum[iswap][nsend],sendlist[iswap][nsend],
+comm_tiled.cpp:1201:      compute->unpack_forward_comm(recvnum[iswap][nrecv],
+comm_tiled.cpp:1207:        compute->
+comm_tiled.cpp:1225:  int nsize = compute->comm_reverse;
+comm_tiled.cpp:1239:        n = compute->pack_reverse_comm(recvnum[iswap][i],firstrecv[iswap][i],
+comm_tiled.cpp:1245:      compute->pack_reverse_comm(recvnum[iswap][nrecv],firstrecv[iswap][nrecv],
+comm_tiled.cpp:1247:      compute->unpack_reverse_comm(sendnum[iswap][nsend],sendlist[iswap][nsend],
+comm_tiled.cpp:1253:        compute->
+compute_chunk_atom.cpp:580:  // fixstore ID = compute-ID + COMPUTE_STORE, fix group = compute group
+compute_chunk_spread_atom.cpp:279:        if (!(compute->invoked_flag & INVOKED_VECTOR)) {
+compute_chunk_spread_atom.cpp:280:          compute->compute_vector();
+compute_chunk_spread_atom.cpp:281:          compute->invoked_flag |= INVOKED_VECTOR;
+compute_chunk_spread_atom.cpp:283:        double *cvector = compute->vector;
+compute_chunk_spread_atom.cpp:293:        if (!(compute->invoked_flag & INVOKED_ARRAY)) {
+compute_chunk_spread_atom.cpp:294:          compute->compute_array();
+compute_chunk_spread_atom.cpp:295:          compute->invoked_flag |= INVOKED_ARRAY;
+compute_chunk_spread_atom.cpp:298:        double **carray = compute->array;
+compute_displace_atom.cpp:73:  // id = compute-ID + COMPUTE_STORE, fix group = compute group
+compute_global_atom.cpp:342:    if (!(compute->invoked_flag & INVOKED_PERATOM)) {
+compute_global_atom.cpp:343:      compute->compute_peratom();
+compute_global_atom.cpp:344:      compute->invoked_flag |= INVOKED_PERATOM;
+compute_global_atom.cpp:348:      double *compute_vector = compute->vector_atom;
+compute_global_atom.cpp:353:      double **compute_array = compute->array_atom;
+compute_global_atom.cpp:399:        if (!(compute->invoked_flag & INVOKED_VECTOR)) {
+compute_global_atom.cpp:400:          compute->compute_vector();
+compute_global_atom.cpp:401:          compute->invoked_flag |= INVOKED_VECTOR;
+compute_global_atom.cpp:404:        source = compute->vector;
+compute_global_atom.cpp:405:        vmax = compute->size_vector;
+compute_global_atom.cpp:457:        if (!(compute->invoked_flag & INVOKED_ARRAY)) {
+compute_global_atom.cpp:458:          compute->compute_array();
+compute_global_atom.cpp:459:          compute->invoked_flag |= INVOKED_ARRAY;
+compute_global_atom.cpp:462:        double **compute_array = compute->array;
+compute_global_atom.cpp:463:        vmax = compute->size_array_rows;
+compute_hma.cpp:95:  // our new fix's id (id_fix)= compute-ID + COMPUTE_STORE
+compute_msd.cpp:64:  // id = compute-ID + COMPUTE_STORE, fix group = compute group
+compute_msd_chunk.cpp:53:  // id = compute-ID + COMPUTE_STORE, fix group = compute group
+compute_reduce.cpp:515:      if (!(compute->invoked_flag & INVOKED_PERATOM)) {
+compute_reduce.cpp:516:        compute->compute_peratom();
+compute_reduce.cpp:517:        compute->invoked_flag |= INVOKED_PERATOM;
+compute_reduce.cpp:521:        double *comp_vec = compute->vector_atom;
+compute_reduce.cpp:528:        double **carray_atom = compute->array_atom;
+compute_reduce.cpp:538:      if (!(compute->invoked_flag & INVOKED_LOCAL)) {
+compute_reduce.cpp:539:        compute->compute_local();
+compute_reduce.cpp:540:        compute->invoked_flag |= INVOKED_LOCAL;
+compute_reduce.cpp:544:        double *comp_vec = compute->vector_local;
+compute_reduce.cpp:545:        int n = compute->size_local_rows;
+compute_reduce.cpp:551:        double **carray_local = compute->array_local;
+compute_reduce.cpp:552:        int n = compute->size_local_rows;
+compute_reduce.cpp:637:      bigint ncount = compute->size_local_rows;
+compute_reduce_chunk.cpp:376:    if (!(compute->invoked_flag & INVOKED_PERATOM)) {
+compute_reduce_chunk.cpp:377:      compute->compute_peratom();
+compute_reduce_chunk.cpp:378:      compute->invoked_flag |= INVOKED_PERATOM;
+compute_reduce_chunk.cpp:382:      double *vcompute = compute->vector_atom;
+compute_reduce_chunk.cpp:390:      double **acompute = compute->array_atom;
+compute_reduce_region.cpp:113:      if (!(compute->invoked_flag & INVOKED_PERATOM)) {
+compute_reduce_region.cpp:114:        compute->compute_peratom();
+compute_reduce_region.cpp:115:        compute->invoked_flag |= INVOKED_PERATOM;
+compute_reduce_region.cpp:119:        double *compute_vector = compute->vector_atom;
+compute_reduce_region.cpp:127:        double **compute_array = compute->array_atom;
+compute_reduce_region.cpp:138:      if (!(compute->invoked_flag & INVOKED_LOCAL)) {
+compute_reduce_region.cpp:139:        compute->compute_local();
+compute_reduce_region.cpp:140:        compute->invoked_flag |= INVOKED_LOCAL;
+compute_reduce_region.cpp:144:        double *compute_vector = compute->vector_local;
+compute_reduce_region.cpp:145:        int n = compute->size_local_rows;
+compute_reduce_region.cpp:151:        double **compute_array = compute->array_local;
+compute_reduce_region.cpp:152:        int n = compute->size_local_rows;
+compute_reduce_region.cpp:240:      bigint ncount = compute->size_local_rows;
+compute_slice.cpp:293:      if (!(compute->invoked_flag & INVOKED_VECTOR)) {
+compute_slice.cpp:294:        compute->compute_vector();
+compute_slice.cpp:295:        compute->invoked_flag |= INVOKED_VECTOR;
+compute_slice.cpp:297:      double *cvector = compute->vector;
+compute_slice.cpp:305:      if (!(compute->invoked_flag & INVOKED_ARRAY)) {
+compute_slice.cpp:306:        compute->compute_array();
+compute_slice.cpp:307:        compute->invoked_flag |= INVOKED_ARRAY;
+compute_slice.cpp:309:      double **carray = compute->array;
+compute_temp_cs.cpp:67:  // id = compute-ID + COMPUTE_STORE, fix group = compute group
+compute_vacf.cpp:40:  // id = compute-ID + COMPUTE_STORE, fix group = compute group
+dump_custom.cpp:1516:  return ncompute-1;
+dump_local.cpp:551:  return ncompute-1;
+fix_ave_atom.cpp:344:      if (!(compute->invoked_flag & INVOKED_PERATOM)) {
+fix_ave_atom.cpp:345:        compute->compute_peratom();
+fix_ave_atom.cpp:346:        compute->invoked_flag |= INVOKED_PERATOM;
+fix_ave_atom.cpp:350:        double *compute_vector = compute->vector_atom;
+fix_ave_atom.cpp:355:        double **compute_array = compute->array_atom;
+fix_ave_chunk.cpp:741:      if (!(compute->invoked_flag & INVOKED_PERATOM)) {
+fix_ave_chunk.cpp:742:        compute->compute_peratom();
+fix_ave_chunk.cpp:743:        compute->invoked_flag |= INVOKED_PERATOM;
+fix_ave_chunk.cpp:745:      double *vector = compute->vector_atom;
+fix_ave_chunk.cpp:746:      double **array = compute->array_atom;
+fix_ave_correlate.cpp:448:        if (!(compute->invoked_flag & INVOKED_SCALAR)) {
+fix_ave_correlate.cpp:449:          compute->compute_scalar();
+fix_ave_correlate.cpp:450:          compute->invoked_flag |= INVOKED_SCALAR;
+fix_ave_correlate.cpp:452:        scalar = compute->scalar;
+fix_ave_correlate.cpp:454:        if (!(compute->invoked_flag & INVOKED_VECTOR)) {
+fix_ave_correlate.cpp:455:          compute->compute_vector();
+fix_ave_correlate.cpp:456:          compute->invoked_flag |= INVOKED_VECTOR;
+fix_ave_correlate.cpp:458:        scalar = compute->vector[argindex[i]-1];
+fix_ave_correlate_long.cpp:452:        if (!(compute->invoked_flag & INVOKED_SCALAR)) {
+fix_ave_correlate_long.cpp:453:          compute->compute_scalar();
+fix_ave_correlate_long.cpp:454:          compute->invoked_flag |= INVOKED_SCALAR;
+fix_ave_correlate_long.cpp:456:        scalar = compute->scalar;
+fix_ave_correlate_long.cpp:458:        if (!(compute->invoked_flag & INVOKED_VECTOR)) {
+fix_ave_correlate_long.cpp:459:          compute->compute_vector();
+fix_ave_correlate_long.cpp:460:          compute->invoked_flag |= INVOKED_VECTOR;
+fix_ave_correlate_long.cpp:462:        scalar = compute->vector[argindex[i]-1];
+fix_ave_histo.cpp:218:      if (compute->scalar_flag || compute->vector_flag || compute->array_flag)
+fix_ave_histo.cpp:220:      if (compute->peratom_flag) kindperatom = 1;
+fix_ave_histo.cpp:221:      if (compute->local_flag) kindlocal = 1;
+fix_ave_histo.cpp:642:          if (!(compute->invoked_flag & INVOKED_SCALAR)) {
+fix_ave_histo.cpp:643:            compute->compute_scalar();
+fix_ave_histo.cpp:644:            compute->invoked_flag |= INVOKED_SCALAR;
+fix_ave_histo.cpp:646:          bin_one(compute->scalar);
+fix_ave_histo.cpp:648:          if (!(compute->invoked_flag & INVOKED_VECTOR)) {
+fix_ave_histo.cpp:649:            compute->compute_vector();
+fix_ave_histo.cpp:650:            compute->invoked_flag |= INVOKED_VECTOR;
+fix_ave_histo.cpp:652:          bin_one(compute->vector[j-1]);
+fix_ave_histo.cpp:656:          if (!(compute->invoked_flag & INVOKED_VECTOR)) {
+fix_ave_histo.cpp:657:            compute->compute_vector();
+fix_ave_histo.cpp:658:            compute->invoked_flag |= INVOKED_VECTOR;
+fix_ave_histo.cpp:660:          bin_vector(compute->size_vector,compute->vector,1);
+fix_ave_histo.cpp:662:          if (!(compute->invoked_flag & INVOKED_ARRAY)) {
+fix_ave_histo.cpp:663:            compute->compute_array();
+fix_ave_histo.cpp:664:            compute->invoked_flag |= INVOKED_ARRAY;
+fix_ave_histo.cpp:666:          if (compute->array)
+fix_ave_histo.cpp:667:            bin_vector(compute->size_array_rows,&compute->array[0][j-1],
+fix_ave_histo.cpp:668:                       compute->size_array_cols);
+fix_ave_histo.cpp:672:        if (!(compute->invoked_flag & INVOKED_PERATOM)) {
+fix_ave_histo.cpp:673:          compute->compute_peratom();
+fix_ave_histo.cpp:674:          compute->invoked_flag |= INVOKED_PERATOM;
+fix_ave_histo.cpp:677:          bin_atoms(compute->vector_atom,1);
+fix_ave_histo.cpp:678:        else if (compute->array_atom)
+fix_ave_histo.cpp:679:          bin_atoms(&compute->array_atom[0][j-1],compute->size_peratom_cols);
+fix_ave_histo.cpp:682:        if (!(compute->invoked_flag & INVOKED_LOCAL)) {
+fix_ave_histo.cpp:683:          compute->compute_local();
+fix_ave_histo.cpp:684:          compute->invoked_flag |= INVOKED_LOCAL;
+fix_ave_histo.cpp:687:          bin_vector(compute->size_local_rows,compute->vector_local,1);
+fix_ave_histo.cpp:688:        else if (compute->array_local)
+fix_ave_histo.cpp:689:          bin_vector(compute->size_local_rows,&compute->array_local[0][j-1],
+fix_ave_histo.cpp:690:                     compute->size_local_cols);
+fix_ave_histo_weight.cpp:158:        if (!(compute->invoked_flag & INVOKED_SCALAR)) {
+fix_ave_histo_weight.cpp:159:          compute->compute_scalar();
+fix_ave_histo_weight.cpp:160:          compute->invoked_flag |= INVOKED_SCALAR;
+fix_ave_histo_weight.cpp:162:        weight = compute->scalar;
+fix_ave_histo_weight.cpp:164:        if (!(compute->invoked_flag & INVOKED_VECTOR)) {
+fix_ave_histo_weight.cpp:165:          compute->compute_vector();
+fix_ave_histo_weight.cpp:166:          compute->invoked_flag |= INVOKED_VECTOR;
+fix_ave_histo_weight.cpp:168:        weight = compute->vector[j-1];
+fix_ave_histo_weight.cpp:172:        if (!(compute->invoked_flag & INVOKED_VECTOR)) {
+fix_ave_histo_weight.cpp:173:          compute->compute_vector();
+fix_ave_histo_weight.cpp:174:          compute->invoked_flag |= INVOKED_VECTOR;
+fix_ave_histo_weight.cpp:176:        weights = compute->vector;
+fix_ave_histo_weight.cpp:179:        if (!(compute->invoked_flag & INVOKED_ARRAY)) {
+fix_ave_histo_weight.cpp:180:          compute->compute_array();
+fix_ave_histo_weight.cpp:181:          compute->invoked_flag |= INVOKED_ARRAY;
+fix_ave_histo_weight.cpp:183:        if (compute->array) weights = &compute->array[0][j-1];
+fix_ave_histo_weight.cpp:184:        stride = compute->size_array_cols;
+fix_ave_histo_weight.cpp:187:      if (!(compute->invoked_flag & INVOKED_PERATOM)) {
+fix_ave_histo_weight.cpp:188:        compute->compute_peratom();
+fix_ave_histo_weight.cpp:189:        compute->invoked_flag |= INVOKED_PERATOM;
+fix_ave_histo_weight.cpp:192:        weights = compute->vector_atom;
+fix_ave_histo_weight.cpp:194:      } else if (compute->array_atom) {
+fix_ave_histo_weight.cpp:195:        weights = &compute->array_atom[0][j-1];
+fix_ave_histo_weight.cpp:196:        stride = compute->size_peratom_cols;
+fix_ave_histo_weight.cpp:199:      if (!(compute->invoked_flag & INVOKED_LOCAL)) {
+fix_ave_histo_weight.cpp:200:        compute->compute_local();
+fix_ave_histo_weight.cpp:201:        compute->invoked_flag |= INVOKED_LOCAL;
+fix_ave_histo_weight.cpp:204:        weights = compute->vector_local;
+fix_ave_histo_weight.cpp:206:      } else if (compute->array_local) {
+fix_ave_histo_weight.cpp:207:        weights = &compute->array_local[0][j-1];
+fix_ave_histo_weight.cpp:208:        stride = compute->size_local_cols;
+fix_ave_histo_weight.cpp:286:        if (!(compute->invoked_flag & INVOKED_SCALAR)) {
+fix_ave_histo_weight.cpp:287:          compute->compute_scalar();
+fix_ave_histo_weight.cpp:288:          compute->invoked_flag |= INVOKED_SCALAR;
+fix_ave_histo_weight.cpp:290:        bin_one_weights(compute->scalar,weight);
+fix_ave_histo_weight.cpp:292:        if (!(compute->invoked_flag & INVOKED_VECTOR)) {
+fix_ave_histo_weight.cpp:293:          compute->compute_vector();
+fix_ave_histo_weight.cpp:294:          compute->invoked_flag |= INVOKED_VECTOR;
+fix_ave_histo_weight.cpp:296:        bin_one_weights(compute->vector[j-1],weight);
+fix_ave_histo_weight.cpp:300:        if (!(compute->invoked_flag & INVOKED_VECTOR)) {
+fix_ave_histo_weight.cpp:301:          compute->compute_vector();
+fix_ave_histo_weight.cpp:302:          compute->invoked_flag |= INVOKED_VECTOR;
+fix_ave_histo_weight.cpp:304:        bin_vector_weights(compute->size_vector,compute->vector,1,
+fix_ave_histo_weight.cpp:307:        if (!(compute->invoked_flag & INVOKED_ARRAY)) {
+fix_ave_histo_weight.cpp:308:          compute->compute_array();
+fix_ave_histo_weight.cpp:309:          compute->invoked_flag |= INVOKED_ARRAY;
+fix_ave_histo_weight.cpp:311:        if (compute->array)
+fix_ave_histo_weight.cpp:312:          bin_vector_weights(compute->size_array_rows,&compute->array[0][j-1],
+fix_ave_histo_weight.cpp:313:                             compute->size_array_cols,weights,stride);
+fix_ave_histo_weight.cpp:317:      if (!(compute->invoked_flag & INVOKED_PERATOM)) {
+fix_ave_histo_weight.cpp:318:        compute->compute_peratom();
+fix_ave_histo_weight.cpp:319:        compute->invoked_flag |= INVOKED_PERATOM;
+fix_ave_histo_weight.cpp:322:        bin_atoms_weights(compute->vector_atom,1,weights, stride);
+fix_ave_histo_weight.cpp:323:      else if (compute->array_atom)
+fix_ave_histo_weight.cpp:324:        bin_atoms_weights(&compute->array_atom[0][j-1],
+fix_ave_histo_weight.cpp:325:                          compute->size_peratom_cols,weights,stride);
+fix_ave_histo_weight.cpp:328:      if (!(compute->invoked_flag & INVOKED_LOCAL)) {
+fix_ave_histo_weight.cpp:329:        compute->compute_local();
+fix_ave_histo_weight.cpp:330:        compute->invoked_flag |= INVOKED_LOCAL;
+fix_ave_histo_weight.cpp:333:        bin_vector_weights(compute->size_local_rows,
+fix_ave_histo_weight.cpp:334:                           compute->vector_local,1,weights,stride);
+fix_ave_histo_weight.cpp:335:      else if (compute->array_local)
+fix_ave_histo_weight.cpp:336:        bin_vector_weights(compute->size_local_rows,
+fix_ave_histo_weight.cpp:337:                           &compute->array_local[0][j-1],
+fix_ave_histo_weight.cpp:338:                           compute->size_local_cols,weights,stride);
+fix_ave_time.cpp:332:        if (argindex[0] == 0) extscalar = compute->extscalar;
+fix_ave_time.cpp:333:        else if (compute->extvector >= 0) extscalar = compute->extvector;
+fix_ave_time.cpp:334:        else extscalar = compute->extlist[argindex[0]-1];
+fix_ave_time.cpp:352:          if (argindex[i] == 0) extlist[i] = compute->extscalar;
+fix_ave_time.cpp:353:          else if (compute->extvector >= 0) extlist[i] = compute->extvector;
+fix_ave_time.cpp:354:          else extlist[i] = compute->extlist[argindex[i]-1];
+fix_ave_time.cpp:374:          extvector = compute->extvector;
+fix_ave_time.cpp:377:            for (int i = 0; i < nrows; i++) extlist[i] = compute->extlist[i];
+fix_ave_time.cpp:379:        } else extvector = compute->extarray;
+fix_ave_time.cpp:403:          if (argindex[i] == 0) value = compute->extvector;
+fix_ave_time.cpp:404:          else value = compute->extarray;
+fix_ave_time.cpp:591:        if (!(compute->invoked_flag & INVOKED_SCALAR)) {
+fix_ave_time.cpp:592:          compute->compute_scalar();
+fix_ave_time.cpp:593:          compute->invoked_flag |= INVOKED_SCALAR;
+fix_ave_time.cpp:595:        scalar = compute->scalar;
+fix_ave_time.cpp:597:        if (!(compute->invoked_flag & INVOKED_VECTOR)) {
+fix_ave_time.cpp:598:          compute->compute_vector();
+fix_ave_time.cpp:599:          compute->invoked_flag |= INVOKED_VECTOR;
+fix_ave_time.cpp:601:        if (varlen[i] && compute->size_vector < argindex[i]) scalar = 0.0;
+fix_ave_time.cpp:602:        else scalar = compute->vector[argindex[i]-1];
+fix_ave_time.cpp:747:          compute->lock(this,ntimestep,ntimestep+(nrepeat-1)*nevery);
+fix_ave_time.cpp:750:          compute->lock(this,update->ntimestep,-1);
+fix_ave_time.cpp:775:        if (!(compute->invoked_flag & INVOKED_VECTOR)) {
+fix_ave_time.cpp:776:          compute->compute_vector();
+fix_ave_time.cpp:777:          compute->invoked_flag |= INVOKED_VECTOR;
+fix_ave_time.cpp:779:        double *cvector = compute->vector;
+fix_ave_time.cpp:784:        if (!(compute->invoked_flag & INVOKED_ARRAY)) {
+fix_ave_time.cpp:785:          compute->compute_array();
+fix_ave_time.cpp:786:          compute->invoked_flag |= INVOKED_ARRAY;
+fix_ave_time.cpp:788:        double **carray = compute->array;
+fix_ave_time.cpp:852:      compute->unlock(this);
+fix_ave_time.cpp:963:        lengthone = compute->lock_length();
+fix_controller.cpp:203:      if (!(pcompute->invoked_flag & INVOKED_SCALAR)) {
+fix_controller.cpp:204:        pcompute->compute_scalar();
+fix_controller.cpp:205:        pcompute->invoked_flag |= INVOKED_SCALAR;
+fix_controller.cpp:207:      current = pcompute->scalar;
+fix_controller.cpp:209:      if (!(pcompute->invoked_flag & INVOKED_VECTOR)) {
+fix_controller.cpp:210:        pcompute->compute_vector();
+fix_controller.cpp:211:        pcompute->invoked_flag |= INVOKED_VECTOR;
+fix_controller.cpp:213:      current = pcompute->vector[pvindex-1];
+fix_saed_vtk.cpp:117:      if (compute->vector_flag == 0)
+fix_saed_vtk.cpp:119:      if (compute->extvector != 0)
+fix_saed_vtk.cpp:122:      nrows = compute->size_vector;
+fix_saed_vtk.cpp:364:  if (!(compute->invoked_flag & INVOKED_VECTOR)) {
+fix_saed_vtk.cpp:365:    compute->compute_vector();
+fix_saed_vtk.cpp:366:    compute->invoked_flag |= INVOKED_VECTOR;
+fix_saed_vtk.cpp:369:  double *vector = compute->vector;
+fix_store_state.cpp:498:        if (!(compute->invoked_flag & INVOKED_PERATOM)) {
+fix_store_state.cpp:499:          compute->compute_peratom();
+fix_store_state.cpp:500:          compute->invoked_flag |= INVOKED_PERATOM;
+fix_store_state.cpp:504:          double *compute_vector = compute->vector_atom;
+fix_store_state.cpp:509:          double **compute_array = compute->array_atom;
+fix_vector.cpp:129:      if (argindex[0] == 0) value = compute->extscalar;
+fix_vector.cpp:130:      else if (compute->extvector >= 0) value = compute->extvector;
+fix_vector.cpp:131:      else value = compute->extlist[argindex[0]-1];
+fix_vector.cpp:275:        if (!(compute->invoked_flag & INVOKED_SCALAR)) {
+fix_vector.cpp:276:          compute->compute_scalar();
+fix_vector.cpp:277:          compute->invoked_flag |= INVOKED_SCALAR;
+fix_vector.cpp:279:        result[i] = compute->scalar;
+fix_vector.cpp:281:        if (!(compute->invoked_flag & INVOKED_VECTOR)) {
+fix_vector.cpp:282:          compute->compute_vector();
+fix_vector.cpp:283:          compute->invoked_flag |= INVOKED_VECTOR;
+fix_vector.cpp:285:        result[i] = compute->vector[argindex[i]-1];
+library.cpp:481:   extract a pointer to an internal LAMMPS compute-based entity
+library.cpp:519:        if (!compute->scalar_flag) return NULL;
+library.cpp:520:        if (compute->invoked_scalar != lmp->update->ntimestep)
+library.cpp:521:          compute->compute_scalar();
+library.cpp:522:        return (void *) &compute->scalar;
+library.cpp:525:        if (!compute->vector_flag) return NULL;
+library.cpp:526:        if (compute->invoked_vector != lmp->update->ntimestep)
+library.cpp:527:          compute->compute_vector();
+library.cpp:528:        return (void *) compute->vector;
+library.cpp:531:        if (!compute->array_flag) return NULL;
+library.cpp:532:        if (compute->invoked_array != lmp->update->ntimestep)
+library.cpp:533:          compute->compute_array();
+library.cpp:534:        return (void *) compute->array;
+library.cpp:539:      if (!compute->peratom_flag) return NULL;
+library.cpp:541:        if (compute->invoked_peratom != lmp->update->ntimestep)
+library.cpp:542:          compute->compute_peratom();
+library.cpp:543:        return (void *) compute->vector_atom;
+library.cpp:546:        if (compute->invoked_peratom != lmp->update->ntimestep)
+library.cpp:547:          compute->compute_peratom();
+library.cpp:548:        return (void *) compute->array_atom;
+library.cpp:553:      if (!compute->local_flag) return NULL;
+library.cpp:555:        if (compute->invoked_local != lmp->update->ntimestep)
+library.cpp:556:          compute->compute_local();
+library.cpp:557:        return (void *) &compute->size_local_rows;
+library.cpp:560:        if (compute->invoked_local != lmp->update->ntimestep)
+library.cpp:561:          compute->compute_local();
+library.cpp:562:        return (void *) compute->vector_local;
+library.cpp:565:        if (compute->invoked_local != lmp->update->ntimestep)
+library.cpp:566:          compute->compute_local();
+library.cpp:567:        return (void *) compute->array_local;
+min.cpp:338:  ecurrent = pe_compute->compute_scalar();
+min.cpp:419:  ecurrent = pe_compute->compute_scalar();
+min.cpp:604:  double energy = pe_compute->compute_scalar();
+modify.cpp:1253:  ncompute--;
+neighbor.cpp:739:      compute->init_list(requests[i]->id,lists[i]);
+pair.cpp:743:    list_tally_compute[num_tally_compute-1] = ptr;
+prd.cpp:154:  temperature = modify->compute[modify->ncompute-1];
+temper.cpp:136:  pe_compute->addstep(update->ntimestep + nevery);
+temper.cpp:237:    pe = pe_compute->compute_scalar();
+temper.cpp:238:    pe_compute->addstep(update->ntimestep + nevery);
+temper_grem.cpp:157:  pe_compute->addstep(update->ntimestep + nevery);
+temper_grem.cpp:259:    pe = pe_compute->compute_scalar();
+temper_grem.cpp:260:    pe_compute->addstep(update->ntimestep + nevery);
+temper_npt.cpp:137:  pe_compute->addstep(update->ntimestep + nevery);
+temper_npt.cpp:238:    pe = pe_compute->compute_scalar();
+temper_npt.cpp:239:    pe_compute->addstep(update->ntimestep + nevery);
+thermo.cpp:1036:  return ncompute-1;
+thermo.cpp:1520:    dvalue = compute->scalar;
+thermo.cpp:1521:    if (normflag && compute->extscalar) dvalue /= natoms;
+thermo.cpp:1523:    if (compute->size_vector_variable && argindex1[ifield] >
+thermo.cpp:1524:        compute->size_vector) dvalue = 0.0;
+thermo.cpp:1525:    else dvalue = compute->vector[argindex1[ifield]-1];
+thermo.cpp:1527:      if (compute->extvector == 0) return;
+thermo.cpp:1528:      else if (compute->extvector == 1) dvalue /= natoms;
+thermo.cpp:1529:      else if (compute->extlist[argindex1[ifield]-1]) dvalue /= natoms;
+thermo.cpp:1532:    if (compute->size_array_rows_variable && argindex1[ifield] >
+thermo.cpp:1533:        compute->size_array_rows) dvalue = 0.0;
+thermo.cpp:1534:    else dvalue = compute->array[argindex1[ifield]-1][argindex2[ifield]-1];
+thermo.cpp:1535:    if (normflag && compute->extarray) dvalue /= natoms;
+variable.cpp:1337:        if (nbracket == 0 && compute->scalar_flag && lowercase) {
+variable.cpp:1340:            if (compute->invoked_scalar != update->ntimestep)
+variable.cpp:1343:          } else if (!(compute->invoked_flag & INVOKED_SCALAR)) {
+variable.cpp:1344:            compute->compute_scalar();
+variable.cpp:1345:            compute->invoked_flag |= INVOKED_SCALAR;
+variable.cpp:1348:          value1 = compute->scalar;
+variable.cpp:1360:        } else if (nbracket == 1 && compute->vector_flag && lowercase) {
+variable.cpp:1362:          if (index1 > compute->size_vector &&
+variable.cpp:1363:              compute->size_vector_variable == 0)
+variable.cpp:1367:            if (compute->invoked_vector != update->ntimestep)
+variable.cpp:1370:          } else if (!(compute->invoked_flag & INVOKED_VECTOR)) {
+variable.cpp:1371:            compute->compute_vector();
+variable.cpp:1372:            compute->invoked_flag |= INVOKED_VECTOR;
+variable.cpp:1375:          if (compute->size_vector_variable &&
+variable.cpp:1376:              index1 > compute->size_vector) value1 = 0.0;
+variable.cpp:1377:          else value1 = compute->vector[index1-1];
+variable.cpp:1389:        } else if (nbracket == 2 && compute->array_flag && lowercase) {
+variable.cpp:1391:          if (index1 > compute->size_array_rows &&
+variable.cpp:1392:              compute->size_array_rows_variable == 0)
+variable.cpp:1395:          if (index2 > compute->size_array_cols)
+variable.cpp:1399:            if (compute->invoked_array != update->ntimestep)
+variable.cpp:1402:          } else if (!(compute->invoked_flag & INVOKED_ARRAY)) {
+variable.cpp:1403:            compute->compute_array();
+variable.cpp:1404:            compute->invoked_flag |= INVOKED_ARRAY;
+variable.cpp:1407:          if (compute->size_array_rows_variable &&
+variable.cpp:1408:              index1 > compute->size_array_rows) value1 = 0.0;
+variable.cpp:1409:          else value1 = compute->array[index1-1][index2-1];
+variable.cpp:1421:        } else if (nbracket == 0 && compute->vector_flag) {
+variable.cpp:1429:          if (compute->size_vector == 0)
+variable.cpp:1433:            if (compute->invoked_vector != update->ntimestep)
+variable.cpp:1436:          } else if (!(compute->invoked_flag & INVOKED_VECTOR)) {
+variable.cpp:1437:            compute->compute_vector();
+variable.cpp:1438:            compute->invoked_flag |= INVOKED_VECTOR;
+variable.cpp:1443:          newtree->array = compute->vector;
+variable.cpp:1444:          newtree->nvector = compute->size_vector;
+variable.cpp:1453:        } else if (nbracket == 1 && compute->array_flag) {
+variable.cpp:1461:          if (compute->size_array_rows == 0)
+variable.cpp:1465:            if (compute->invoked_array != update->ntimestep)
+variable.cpp:1468:          } else if (!(compute->invoked_flag & INVOKED_ARRAY)) {
+variable.cpp:1469:            compute->compute_array();
+variable.cpp:1470:            compute->invoked_flag |= INVOKED_ARRAY;
+variable.cpp:1475:          newtree->array = &compute->array[0][index1-1];
+variable.cpp:1476:          newtree->nvector = compute->size_array_rows;
+variable.cpp:1477:          newtree->nstride = compute->size_array_cols;
+variable.cpp:1485:        } else if (nbracket == 1 && compute->peratom_flag &&
+variable.cpp:1486:                   compute->size_peratom_cols == 0) {
+variable.cpp:1489:            if (compute->invoked_peratom != update->ntimestep)
+variable.cpp:1492:          } else if (!(compute->invoked_flag & INVOKED_PERATOM)) {
+variable.cpp:1493:            compute->compute_peratom();
+variable.cpp:1494:            compute->invoked_flag |= INVOKED_PERATOM;
+variable.cpp:1497:          peratom2global(1,NULL,compute->vector_atom,1,index1,
+variable.cpp:1502:        } else if (nbracket == 2 && compute->peratom_flag &&
+variable.cpp:1503:                   compute->size_peratom_cols > 0) {
+variable.cpp:1505:          if (index2 > compute->size_peratom_cols)
+variable.cpp:1509:            if (compute->invoked_peratom != update->ntimestep)
+variable.cpp:1512:          } else if (!(compute->invoked_flag & INVOKED_PERATOM)) {
+variable.cpp:1513:            compute->compute_peratom();
+variable.cpp:1514:            compute->invoked_flag |= INVOKED_PERATOM;
+variable.cpp:1517:          if (compute->array_atom)
+variable.cpp:1518:            peratom2global(1,NULL,&compute->array_atom[0][index2-1],
+variable.cpp:1519:                           compute->size_peratom_cols,index1,
+variable.cpp:1523:                           compute->size_peratom_cols,index1,
+variable.cpp:1528:        } else if (nbracket == 0 && compute->peratom_flag &&
+variable.cpp:1529:                   compute->size_peratom_cols == 0) {
+variable.cpp:1538:            if (compute->invoked_peratom != update->ntimestep)
+variable.cpp:1541:          } else if (!(compute->invoked_flag & INVOKED_PERATOM)) {
+variable.cpp:1542:            compute->compute_peratom();
+variable.cpp:1543:            compute->invoked_flag |= INVOKED_PERATOM;
+variable.cpp:1548:          newtree->array = compute->vector_atom;
+variable.cpp:1557:        } else if (nbracket == 1 && compute->peratom_flag &&
+variable.cpp:1558:                   compute->size_peratom_cols > 0) {
+variable.cpp:1566:          if (index1 > compute->size_peratom_cols)
+variable.cpp:1570:            if (compute->invoked_peratom != update->ntimestep)
+variable.cpp:1573:          } else if (!(compute->invoked_flag & INVOKED_PERATOM)) {
+variable.cpp:1574:            compute->compute_peratom();
+variable.cpp:1575:            compute->invoked_flag |= INVOKED_PERATOM;
+variable.cpp:1580:          if (compute->array_atom)
+variable.cpp:1581:            newtree->array = &compute->array_atom[0][index1-1];
+variable.cpp:1584:          newtree->nstride = compute->size_peratom_cols;
+variable.cpp:1590:        } else if (nbracket == 1 && compute->local_flag) {
+variable.cpp:4103:      if (index == 0 && compute->vector_flag) {
+variable.cpp:4105:          if (compute->invoked_vector != update->ntimestep)
+variable.cpp:4108:        } else if (!(compute->invoked_flag & INVOKED_VECTOR)) {
+variable.cpp:4109:          compute->compute_vector();
+variable.cpp:4110:          compute->invoked_flag |= INVOKED_VECTOR;
+variable.cpp:4112:        nvec = compute->size_vector;
+variable.cpp:4114:      } else if (index && compute->array_flag) {
+variable.cpp:4115:        if (index > compute->size_array_cols)
+variable.cpp:4119:          if (compute->invoked_array != update->ntimestep)
+variable.cpp:4122:        } else if (!(compute->invoked_flag & INVOKED_ARRAY)) {
+variable.cpp:4123:          compute->compute_array();
+variable.cpp:4124:          compute->invoked_flag |= INVOKED_ARRAY;
+variable.cpp:4126:        nvec = compute->size_array_rows;
+variable.cpp:4127:        nstride = compute->size_array_cols;
+variable.cpp:4209:        if (compute->array) vec = &compute->array[0][index-1];
+variable.cpp:4211:      } else vec = compute->vector;

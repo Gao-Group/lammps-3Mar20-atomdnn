@@ -70,11 +70,11 @@ DumpLocal::DumpLocal(LAMMPS *lmp, int narg, char **arg) :
       char *ptr = strchr(comp_keyword,'[');
       *ptr = '\0'; // set to NULL
       icompute = modify->find_compute(&comp_keyword[2]);
-      if (icompute > 0)
-	if (strcmp(modify->compute[icompute]->style,"fingerprints")==0){
-	  modify->compute[icompute]->peratom_flag = 0;
-	  break;
-	}
+      // if (icompute > 0)
+      // 	if (strcmp(modify->compute[icompute]->style,"fingerprints")==0){
+      // 	  modify->compute[icompute]->peratom_flag = 0;
+      // 	  break;
+      // 	}
     }    
   }
   
@@ -270,6 +270,19 @@ int DumpLocal::modify_param(int narg, char **arg)
     strcpy(label,arg[1]);
     return 2;
   }
+
+  if (strcmp(arg[0],"format") == 0) {
+    if (narg < 2) error->all(FLERR,"Illegal dump_modify command");
+    if (strcmp(arg[1],"float") == 0) {
+      delete [] format_float_user;
+      int n = strlen(arg[2]) + 1;
+      format_float_user = new char[n];
+      strcpy(format_float_user,arg[2]);
+      return 3;
+    }
+  }
+
+  
   return 0;
 }
 

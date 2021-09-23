@@ -211,6 +211,12 @@ void ComputeDerivatives::compute_derivatives()
 	derivatives_i[2][n] = 0.0;
       }
 
+      for(int n = 0; n < size_local_cols; n++) {
+	derivatives[0][n] = 0.0;
+	derivatives[1][n] = 0.0;
+	derivatives[2][n] = 0.0;
+      }
+
 
       /* ------------------------------------------------------------------------------------------------------------------------------- */
       for (int jj = 0; jj < jnum; jj++) {            // Loop for the first neighbor j
@@ -228,12 +234,6 @@ void ComputeDerivatives::compute_derivatives()
 	if (rsq < cutsq && rsq>1e-20) { 
 	  function = 0.5*(cos(sqrt(rsq/cutsq)*pi)+1);
 	  dfc = -pi*0.5*sin(pi*sqrt(rsq/cutsq))/(sqrt(cutsq));
-
-	  for(int n = 0; n < size_local_cols; n++) {
-	    derivatives[0][n] = 0.0;
-	    derivatives[1][n] = 0.0;
-	    derivatives[2][n] = 0.0;
-	  }
 
 	  derivatives[0][0] = i;
 	  derivatives[1][0] = tag[i];

@@ -140,13 +140,10 @@ void ComputeStressAtom::compute_peratom()
   // needs to be atom->nmax in length
 
   if (atom->nmax > nmax) {
-    printf("=====> atom->nmax = %d \n",atom->nmax);
-    printf("=====> nmax = %d \n",nmax);
     memory->destroy(stress);
     nmax = atom->nmax;
     memory->create(stress,nmax,6,"stress/atom:stress");
     array_atom = stress;
-    printf("=====> allocate memory for stress/atom \n");
   }
 
   // npair includes ghosts if either newton flag is set

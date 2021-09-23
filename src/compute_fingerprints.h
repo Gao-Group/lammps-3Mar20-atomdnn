@@ -20,7 +20,6 @@ class ComputeFingerprints : public Compute {
   void init_list(int, class NeighList *);
   void compute_peratom();
   double memory_usage();
-  double **fingerpts;
   
  private:
   double cutsq;
@@ -34,7 +33,10 @@ class ComputeFingerprints : public Compute {
   int n_lambda;
   int g2_flag;
   int g4_flag;
-  int nmax_atom;
+  int nmax_atom;        // number of atom to be computed 
+  double **fingerprints;   // fingerprints array
+  int n_fingerprints;   // number of of fingerprints
+  
   class NeighList *list;
 
 };

@@ -307,6 +307,7 @@ void Verlet::run(int n)
       force->pair->compute(eflag,vflag);
       timer->stamp(Timer::PAIR);
     }
+    
 
     if (atom->molecular) {
       if (force->bond) force->bond->compute(eflag,vflag);
@@ -340,8 +341,21 @@ void Verlet::run(int n)
     if (n_end_of_step) modify->end_of_step();
     timer->stamp(Timer::MODIFY);
 
+    // if (me==0){
+    //   printf("ffffffffffffffffff After, proc 0 fffffffffffffffffffff\n");
+    //   printf("f[0][0] = %g\n",atom->f[0][0]);
+    //   printf("f[46][0] = %g\n",atom->f[46][0]);
+    //   printf("f[75][0] = %g\n",atom->f[75][0]);
+    //   printf("f[91][0] = %g\n",atom->f[91][0]);
+    //   printf("f[107][0] = %g\n",atom->f[107][0]);
+    // }
+    // else if (me==1){
+    //   printf("fffffffffffffffff After,  proc 1 fffffffffffffffffffff\n");
+    //   printf("f[9][0] = %g\n",atom->f[9][0]);
+    //   printf("f[89][0] = %g\n",atom->f[89][0]);
+    //}
     // all output
-
+    
     if (ntimestep == output->next) {
       timer->stamp();
       output->write(ntimestep);
