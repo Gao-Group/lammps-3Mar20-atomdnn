@@ -424,7 +424,8 @@ void PairTFDNN::init_style()
   neighbor->requests[irequest_full]->id = 1;
   neighbor->requests[irequest_full]->half = 0;
   neighbor->requests[irequest_full]->full = 1;
-  neighbor->requests[irequest_full]->ghost = 1;
+  // neighbor->requests[irequest_full]->ghost = 1;
+  neighbor->requests[irequest_full]->occasional = 1;
   
   // create tensorflow model
   create_tensorflow_model();

@@ -83,8 +83,8 @@ void PairLJCut::compute(int eflag, int vflag)
   int newton_pair = force->newton_pair;
 
   inum = list->inum;
-  printf("list->inum = %d \n",inum);
-  printf("nlocal = %d \n",atom->nlocal);
+  //printf("list->inum = %d \n",inum);
+  //printf("nlocal = %d \n",atom->nlocal);
   ilist = list->ilist;
   numneigh = list->numneigh;
   firstneigh = list->firstneigh;
